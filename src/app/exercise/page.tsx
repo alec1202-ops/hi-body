@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { Plus, Trash2, Sparkles, Timer, Flame, Dumbbell, RefreshCw, LogOut } from 'lucide-react';
@@ -87,7 +87,7 @@ function AddExerciseForm({ onAdd, onClose, date, userWeight }: AddExerciseFormPr
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-end justify-center" onClick={onClose}>
       <div className="bg-white w-full max-w-[480px] rounded-t-3xl max-h-[90dvh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-        <div className="overflow-y-auto flex-1 p-5 pb-0">
+        <div className="overflow-y-auto flex-1 min-h-0 p-5 pb-0" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
         <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
         <h2 className="text-lg font-bold text-gray-900 mb-4">新增運動記錄</h2>
 
