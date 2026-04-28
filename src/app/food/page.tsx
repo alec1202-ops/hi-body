@@ -138,9 +138,17 @@ function AddFoodForm({ onAdd, onClose, date, favoriteMeals }: AddFoodFormProps) 
         <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-gray-900">新增飲食</h2>
-          <Link href="/food/favorites" className="text-xs text-emerald-600 flex items-center gap-1">
-            <BookOpen size={14} /> 管理常用餐點
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href="/food/favorites" className="text-xs text-emerald-600 flex items-center gap-1">
+              <BookOpen size={14} /> 管理常用餐點
+            </Link>
+            <button
+              onClick={handleSubmit}
+              className="px-4 py-1.5 bg-emerald-500 text-white text-sm font-semibold rounded-xl"
+            >
+              ✅ 新增
+            </button>
+          </div>
         </div>
 
         {/* Meal Type Selector */}

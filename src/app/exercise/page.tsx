@@ -89,7 +89,15 @@ function AddExerciseForm({ onAdd, onClose, date, userWeight }: AddExerciseFormPr
       <div className="bg-white w-full max-w-[480px] rounded-t-3xl max-h-[90dvh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="overflow-y-auto flex-1 min-h-0 p-5 pb-0" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
         <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
-        <h2 className="text-lg font-bold text-gray-900 mb-4">新增運動記錄</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-gray-900">新增運動記錄</h2>
+          <button
+            onClick={handleSubmit}
+            className="px-4 py-1.5 bg-emerald-500 text-white text-sm font-semibold rounded-xl"
+          >
+            ✅ 新增
+          </button>
+        </div>
 
         {/* Tab */}
         <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-4">
