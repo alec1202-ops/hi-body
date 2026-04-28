@@ -132,7 +132,9 @@ function AddFoodForm({ onAdd, onClose, date, favoriteMeals }: AddFoodFormProps) 
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-end justify-center" onClick={onClose}>
-      <div className="bg-white w-full max-w-[480px] rounded-t-3xl p-5 max-h-[90dvh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white w-full max-w-[480px] rounded-t-3xl max-h-[90dvh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        {/* Scrollable content */}
+        <div className="overflow-y-auto flex-1 p-5 pb-0">
         <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-gray-900">新增飲食</h2>
@@ -264,10 +266,12 @@ function AddFoodForm({ onAdd, onClose, date, favoriteMeals }: AddFoodFormProps) 
         </div>
 
         {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
+        </div>
 
-        <div className="flex gap-2">
+        {/* Sticky bottom buttons — always visible */}
+        <div className="p-4 pt-3 border-t border-gray-100 bg-white flex gap-2">
           <Button variant="secondary" onClick={onClose} className="flex-1">取消</Button>
-          <Button onClick={handleSubmit} className="flex-1">新增</Button>
+          <Button onClick={handleSubmit} className="flex-1 py-3 text-base">✅ 新增飲食</Button>
         </div>
       </div>
     </div>
