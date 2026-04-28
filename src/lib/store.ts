@@ -9,6 +9,7 @@ import type {
   ExerciseEntry,
   WeightEntry,
   DailySummary,
+  StravaTokens,
 } from '@/types';
 
 interface AppState {
@@ -17,8 +18,10 @@ interface AppState {
   foodEntries: FoodEntry[];
   exerciseEntries: ExerciseEntry[];
   weightEntries: WeightEntry[];
+  stravaTokens: StravaTokens | null;
 
   setProfile: (profile: UserProfile) => void;
+  setStravaTokens: (tokens: StravaTokens | null) => void;
 
   addFavoriteMeal: (meal: FavoriteMeal) => void;
   updateFavoriteMeal: (id: string, meal: Partial<FavoriteMeal>) => void;
@@ -64,8 +67,10 @@ export const useAppStore = create<AppState>()(
       foodEntries: [],
       exerciseEntries: [],
       weightEntries: [],
+      stravaTokens: null,
 
       setProfile: (profile) => set({ profile }),
+      setStravaTokens: (stravaTokens) => set({ stravaTokens }),
 
       addFavoriteMeal: (meal) =>
         set((s) => ({ favoriteMeals: [...s.favoriteMeals, meal] })),

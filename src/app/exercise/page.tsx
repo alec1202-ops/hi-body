@@ -1,14 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { format } from 'date-fns';
-import { Plus, Trash2, Sparkles, Timer, Flame, Dumbbell } from 'lucide-react';
+import { Plus, Trash2, Sparkles, Timer, Flame, Dumbbell, RefreshCw, LogOut } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { PhotoUpload } from '@/components/ui/PhotoUpload';
-import type { ExerciseEntry } from '@/types';
+import type { ExerciseEntry, StravaTokens } from '@/types';
 
 const EXERCISE_TYPES = [
   { value: 'cardio', label: '有氧', emoji: '🏃', color: 'orange' as const },
@@ -188,10 +189,159 @@ function AddExerciseForm({ onAdd, onClose, date, userWeight }: AddExerciseFormPr
   );
 }
 
-export default function ExercisePage() {
+// ─── Strava Connect Banner ────────────────────────────────────────────────
+function StravaBanner() {
+  const { stravaTokens, setStravaTokens, addExerciseEntry, exerciseEntries } = useAppStore();
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState('');
+
+  async function handleSync() {
+    if (!stravaTokens) return;
+    setSyncing(true);
+    setSyncMsg('');
+    try {
+      const res = await fetch('/api/strava/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accessToken: stravaTokens.accessToken,
+          refreshToken: stravaTokens.refreshToken,
+          expiresAt: stravaTokens.expiresAt,
+          // sync last 7 days
+          after: Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60,
+        }),
+      });
+      const data = await res.json();
+      if (res.status === 401) {
+        setStravaTokens(null);
+        setSyncMsg('授權已過期，請重新連接 Strava');
+        return;
+      }
+      if (!res.ok) throw new Error(data.error);
+
+      // Update tokens if refreshed
+      if (data.newTokens) {
+        setStravaTokens({ ...stravaTokens, ...data.newTokens });
+      }
+
+      // Deduplicate by Strava ID in notes, then add new ones
+      const existingStravaIds = new Set(
+        exerciseEntries
+          .map((e) => e.notes?.match(/Strava ID: (\d+)/)?.[1])
+          .filter(Boolean)
+      );
+
+      let added = 0;
+      for (const entry of (data.entries as Omit<ExerciseEntry, 'id'>[])) {
+        const stravaId = entry.notes?.match(/Strava ID: (\d+)/)?.[1];
+        if (stravaId && existingStravaIds.has(stravaId)) continue;
+        addExerciseEntry({ ...entry, id: crypto.randomUUID() });
+        added++;
+      }
+
+      setSyncMsg(added > 0 ? `✅ 已匯入 ${added} 筆新活動` : '已是最新，無新活動');
+    } catch {
+      setSyncMsg('同步失敗，請稍後再試');
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  if (!stravaTokens) {
+    return (
+      <Card className="mb-4 border-orange-200 bg-orange-50">
+        <CardContent className="pt-4 pb-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              {/* Strava orange logo */}
+              <span className="text-2xl">🏃</span>
+              <div>
+                <p className="text-sm font-semibold text-gray-800">連接 Strava</p>
+                <p className="text-xs text-gray-500">自動匯入跑步、騎車等運動紀錄</p>
+              </div>
+            </div>
+            <a
+              href="/api/strava/auth"
+              className="px-4 py-2 bg-[#FC4C02] text-white text-xs font-bold rounded-xl whitespace-nowrap"
+            >
+              連接
+            </a>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="mb-4 border-[#FC4C02]/30 bg-orange-50">
+      <CardContent className="pt-3 pb-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-lg flex-shrink-0">🟠</span>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-gray-800 truncate">
+                Strava · {stravaTokens.athleteName || '已連接'}
+              </p>
+              {syncMsg && <p className="text-[11px] text-emerald-600">{syncMsg}</p>}
+            </div>
+          </div>
+          <div className="flex gap-1.5 flex-shrink-0">
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="flex items-center gap-1 px-3 py-1.5 bg-[#FC4C02] text-white text-xs font-semibold rounded-xl disabled:opacity-50"
+            >
+              <RefreshCw size={12} className={syncing ? 'animate-spin' : ''} />
+              {syncing ? '同步中' : '同步'}
+            </button>
+            <button
+              onClick={() => { setStravaTokens(null); setSyncMsg(''); }}
+              className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-50 rounded-xl"
+              title="中斷連接"
+            >
+              <LogOut size={14} />
+            </button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ExercisePageInner() {
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [showForm, setShowForm] = useState(false);
-  const { exerciseEntries, addExerciseEntry, deleteExerciseEntry, profile } = useAppStore();
+  const { exerciseEntries, addExerciseEntry, deleteExerciseEntry, profile, setStravaTokens } = useAppStore();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  // Handle Strava OAuth callback params
+  useEffect(() => {
+    const accessToken = searchParams.get('strava_access_token');
+    const refreshToken = searchParams.get('strava_refresh_token');
+    const expiresAt = searchParams.get('strava_expires_at');
+    const athleteName = searchParams.get('strava_athlete_name');
+    const athleteId = searchParams.get('strava_athlete_id');
+
+    if (accessToken && refreshToken && expiresAt) {
+      const tokens: StravaTokens = {
+        accessToken,
+        refreshToken,
+        expiresAt: parseInt(expiresAt),
+        athleteName: athleteName ?? '',
+        athleteId: parseInt(athleteId ?? '0'),
+      };
+      setStravaTokens(tokens);
+      // Clean up URL
+      router.replace('/exercise');
+    }
+
+    const stravaError = searchParams.get('strava_error');
+    if (stravaError) {
+      router.replace('/exercise');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const dayExercise = exerciseEntries.filter((e) => e.date === date);
   const totalCalories = dayExercise.reduce((s, e) => s + e.caloriesBurned, 0);
@@ -217,6 +367,9 @@ export default function ExercisePage() {
           className="text-sm border border-gray-200 rounded-xl px-2 py-1.5 focus:outline-none focus:border-emerald-400"
         />
       </div>
+
+      {/* Strava */}
+      <StravaBanner />
 
       {/* Summary */}
       <Card className="mb-4">
@@ -273,6 +426,7 @@ export default function ExercisePage() {
                     <div className="flex items-center gap-1 flex-wrap">
                       <span className="text-sm font-medium text-gray-800">{entry.name}</span>
                       {entry.estimatedByAI && <Badge color="purple" className="text-[10px]">AI</Badge>}
+                      {entry.notes?.includes('Strava ID:') && <Badge color="orange" className="text-[10px]">Strava</Badge>}
                     </div>
                     <div className="flex gap-3 mt-0.5 text-xs text-gray-500">
                       {entry.duration > 0 && <span className="flex items-center gap-0.5"><Timer size={11} /> {entry.duration}分</span>}
@@ -306,5 +460,13 @@ export default function ExercisePage() {
         />
       )}
     </div>
+  );
+}
+
+export default function ExercisePage() {
+  return (
+    <Suspense fallback={null}>
+      <ExercisePageInner />
+    </Suspense>
   );
 }

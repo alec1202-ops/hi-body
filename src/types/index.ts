@@ -79,3 +79,11 @@ export interface DailySummary {
   netCalories: number;
   weight?: number;
 }
+
+export interface StravaTokens {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number; // Unix timestamp (seconds)
+  athleteName: string;
+  athleteId: number;
+}
