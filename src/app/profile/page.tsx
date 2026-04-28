@@ -34,6 +34,7 @@ export default function ProfilePage() {
     goal: 'lose',
     dailyCalorieTarget: 0,
     dailyProteinTarget: 0,
+    customBMR: undefined,
   });
   const [saved, setSaved] = useState(false);
 
@@ -42,6 +43,14 @@ export default function ProfilePage() {
   }, [profile]);
 
   const previewProfile = { ...form } as UserProfile;
+  // Auto-calculated BMR (without customBMR override) for display hint
+  const autoBMR = form.age && form.weight && form.height
+    ? (() => {
+        const { weight, height, age, gender } = form;
+        const base = 10 * (weight || 0) + 6.25 * (height || 0) - 5 * (age || 0);
+        return Math.round(gender === 'male' ? base + 5 : base - 161);
+      })()
+    : 0;
   const tdee = form.age && form.weight && form.height ? calculateTDEE(previewProfile) : 0;
 
   const suggestedCalories = tdee > 0
@@ -71,6 +80,7 @@ export default function ProfilePage() {
       goal: form.goal || 'lose',
       dailyCalorieTarget: form.dailyCalorieTarget || suggestedCalories,
       dailyProteinTarget: form.dailyProteinTarget || suggestedProtein,
+      customBMR: form.customBMR && form.customBMR > 0 ? form.customBMR : undefined,
     };
     setProfile(profileData);
     setSaved(true);
@@ -219,9 +229,11 @@ export default function ProfilePage() {
             </div>
             <div className="grid grid-cols-3 gap-2 text-center">
               <div>
-                <p className="text-lg font-bold text-gray-800">{Math.round(tdee * 0.526)}</p>
+                <p className="text-lg font-bold text-gray-800">
+                  {form.customBMR && form.customBMR > 0 ? form.customBMR : autoBMR}
+                </p>
                 <p className="text-xs text-gray-500">BMR</p>
-                <p className="text-[10px] text-gray-400">基礎代謝</p>
+                <p className="text-[10px] text-gray-400">{form.customBMR && form.customBMR > 0 ? '手動設定' : '基礎代謝'}</p>
               </div>
               <div>
                 <p className="text-lg font-bold text-emerald-600">{tdee}</p>
@@ -247,6 +259,25 @@ export default function ProfilePage() {
           </div>
         </CardHeader>
         <CardContent className="pt-0 space-y-3">
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">
+              基礎代謝率 BMR (kcal) <span className="text-gray-400">— 自動計算 {autoBMR || '—'}</span>
+            </label>
+            <input
+              type="number"
+              min={500}
+              max={5000}
+              placeholder={autoBMR ? `自動：${autoBMR}（可手動覆蓋）` : '留空則自動計算'}
+              value={form.customBMR || ''}
+              onChange={(e) => update('customBMR', parseInt(e.target.value) || undefined as unknown as number)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-400"
+            />
+            {form.customBMR && form.customBMR > 0 && (
+              <p className="text-[11px] text-emerald-600 mt-1">
+                ✅ 使用手動 BMR：{form.customBMR} kcal（自動計算值：{autoBMR}）
+              </p>
+            )}
+          </div>
           <div>
             <label className="text-xs text-gray-500 mb-1 block">
               每日熱量目標 (kcal) <span className="text-gray-400">— 建議 {suggestedCalories}</span>

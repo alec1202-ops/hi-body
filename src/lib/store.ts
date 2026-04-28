@@ -41,6 +41,7 @@ interface AppState {
 }
 
 function calculateBMR(profile: UserProfile): number {
+  if (profile.customBMR && profile.customBMR > 0) return profile.customBMR;
   // Mifflin-St Jeor Equation
   const { weight, height, age, gender } = profile;
   const base = 10 * weight + 6.25 * height - 5 * age;

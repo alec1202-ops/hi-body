@@ -9,6 +9,7 @@ export interface UserProfile {
   goal: 'lose' | 'maintain' | 'gain';
   dailyCalorieTarget: number;
   dailyProteinTarget: number; // g
+  customBMR?: number; // manual override for BMR
 }
 
 export interface NutritionInfo {
