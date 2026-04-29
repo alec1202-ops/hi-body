@@ -83,6 +83,44 @@ export interface DailySummary {
   weight?: number;
 }
 
+// ─── Health Report (Annual Checkup) ──────────────────────────────────────────
+export interface HealthReport {
+  id: string;
+  date: string; // YYYY-MM-DD
+  // Hormones & Metabolism
+  testosterone?: number;       // 睪固酮 ng/dL
+  freeTestosterone?: number;   // 游離睪固酮 pg/mL
+  tsh?: number;                // TSH mIU/L
+  t3?: number;                 // 游離T3 pg/mL
+  t4?: number;                 // 游離T4 ng/dL
+  cortisol?: number;           // 皮質醇 μg/dL
+  fastingInsulin?: number;     // 空腹胰島素 μIU/mL
+  fastingGlucose?: number;     // 空腹血糖 mg/dL
+  homaIR?: number;             // HOMA-IR
+  // Nutrients
+  vitaminD?: number;           // 維生素D 25-OH ng/mL
+  ferritin?: number;           // 鐵蛋白 ng/mL
+  hemoglobin?: number;         // 血紅素 g/dL
+  vitaminB12?: number;         // 維生素B12 pg/mL
+  zinc?: number;               // 鋅 μg/dL
+  rbcMagnesium?: number;       // RBC鎂 mg/dL
+  // Inflammation & Recovery
+  hsCRP?: number;              // 高敏感性CRP mg/L
+  uricAcid?: number;           // 尿酸 mg/dL
+  creatineKinase?: number;     // 肌酸激酶 U/L
+  // Liver & Kidney
+  got?: number;                // AST U/L
+  gpt?: number;                // ALT U/L
+  creatinine?: number;         // 肌酸酐 mg/dL
+  egfr?: number;               // eGFR mL/min/1.73m²
+  // Lipids
+  totalCholesterol?: number;   // 總膽固醇 mg/dL
+  ldl?: number;                // LDL mg/dL
+  hdl?: number;                // HDL mg/dL
+  triglycerides?: number;      // 三酸甘油酯 mg/dL
+  notes?: string;
+}
+
 export interface StravaTokens {
   accessToken: string;
   refreshToken: string;

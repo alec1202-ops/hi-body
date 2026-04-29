@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, UtensilsCrossed, Dumbbell, TrendingUp, User } from 'lucide-react';
+import { LayoutDashboard, UtensilsCrossed, Dumbbell, TrendingUp, User, Brain } from 'lucide-react';
 
 const tabs = [
   { href: '/', label: '總覽', icon: LayoutDashboard },
   { href: '/food', label: '飲食', icon: UtensilsCrossed },
   { href: '/exercise', label: '運動', icon: Dumbbell },
   { href: '/progress', label: '進度', icon: TrendingUp },
+  { href: '/health', label: 'AI診斷', icon: Brain },
   { href: '/profile', label: '我的', icon: User },
 ];
 

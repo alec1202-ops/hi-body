@@ -10,6 +10,7 @@ import type {
   WeightEntry,
   DailySummary,
   StravaTokens,
+  HealthReport,
 } from '@/types';
 import * as db from './db';
 
@@ -19,6 +20,7 @@ interface AppState {
   foodEntries: FoodEntry[];
   exerciseEntries: ExerciseEntry[];
   weightEntries: WeightEntry[];
+  healthReports: HealthReport[];
   stravaTokens: StravaTokens | null;
   userId: string | null; // current logged-in user
 
@@ -44,6 +46,10 @@ interface AppState {
   addWeightEntry: (entry: WeightEntry) => void;
   updateWeightEntry: (id: string, entry: Partial<WeightEntry>) => void;
   deleteWeightEntry: (id: string) => void;
+
+  addHealthReport: (report: HealthReport) => void;
+  updateHealthReport: (id: string, report: Partial<HealthReport>) => void;
+  deleteHealthReport: (id: string) => void;
 
   getDailySummary: (date: string) => DailySummary;
   getMonthlyData: (year: number, month: number) => DailySummary[];
@@ -72,6 +78,7 @@ export const useAppStore = create<AppState>()(
       foodEntries: [],
       exerciseEntries: [],
       weightEntries: [],
+      healthReports: [],
       stravaTokens: null,
       userId: null,
 
@@ -86,6 +93,7 @@ export const useAppStore = create<AppState>()(
           exerciseEntries: data.exerciseEntries.length > 0 ? data.exerciseEntries : get().exerciseEntries,
           weightEntries: data.weightEntries.length > 0 ? data.weightEntries : get().weightEntries,
           favoriteMeals: data.favoriteMeals.length > 0 ? data.favoriteMeals : get().favoriteMeals,
+          healthReports: data.healthReports.length > 0 ? data.healthReports : get().healthReports,
           stravaTokens: data.stravaTokens ?? get().stravaTokens,
         });
       },
@@ -96,6 +104,7 @@ export const useAppStore = create<AppState>()(
         foodEntries: [],
         exerciseEntries: [],
         weightEntries: [],
+        healthReports: [],
         stravaTokens: null,
         userId: null,
       }),
@@ -182,6 +191,24 @@ export const useAppStore = create<AppState>()(
       deleteWeightEntry: (id) => {
         set((s) => ({ weightEntries: s.weightEntries.filter((e) => e.id !== id) }));
         db.deleteWeightEntryDb(id);
+      },
+
+      addHealthReport: (report) => {
+        set((s) => ({ healthReports: [...s.healthReports, report] }));
+        const { userId } = get();
+        if (userId) db.upsertHealthReport(userId, report);
+      },
+      updateHealthReport: (id, report) => {
+        set((s) => ({
+          healthReports: s.healthReports.map((r) => r.id === id ? { ...r, ...report } : r),
+        }));
+        const { userId, healthReports } = get();
+        const updated = healthReports.find((r) => r.id === id);
+        if (userId && updated) db.upsertHealthReport(userId, updated);
+      },
+      deleteHealthReport: (id) => {
+        set((s) => ({ healthReports: s.healthReports.filter((r) => r.id !== id) }));
+        db.deleteHealthReportDb(id);
       },
 
       getDailySummary: (date) => {

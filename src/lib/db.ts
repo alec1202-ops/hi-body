@@ -3,7 +3,7 @@
  * Each function is fire-and-forget safe (silent on error).
  */
 import { supabase } from './supabase';
-import type { UserProfile, FoodEntry, ExerciseEntry, WeightEntry, FavoriteMeal, StravaTokens } from '@/types';
+import type { UserProfile, FoodEntry, ExerciseEntry, WeightEntry, FavoriteMeal, StravaTokens, HealthReport } from '@/types';
 
 // ─── Profile ─────────────────────────────────────────────────────────────────
 
@@ -223,10 +223,87 @@ export async function fetchFavoriteMeals(userId: string): Promise<FavoriteMeal[]
   }));
 }
 
+// ─── Health Reports ───────────────────────────────────────────────────────────
+
+export async function upsertHealthReport(userId: string, report: HealthReport) {
+  await supabase.from('health_reports').upsert({
+    id: report.id,
+    user_id: userId,
+    date: report.date,
+    testosterone: report.testosterone ?? null,
+    free_testosterone: report.freeTestosterone ?? null,
+    tsh: report.tsh ?? null,
+    t3: report.t3 ?? null,
+    t4: report.t4 ?? null,
+    cortisol: report.cortisol ?? null,
+    fasting_insulin: report.fastingInsulin ?? null,
+    fasting_glucose: report.fastingGlucose ?? null,
+    homa_ir: report.homaIR ?? null,
+    vitamin_d: report.vitaminD ?? null,
+    ferritin: report.ferritin ?? null,
+    hemoglobin: report.hemoglobin ?? null,
+    vitamin_b12: report.vitaminB12 ?? null,
+    zinc: report.zinc ?? null,
+    rbc_magnesium: report.rbcMagnesium ?? null,
+    hs_crp: report.hsCRP ?? null,
+    uric_acid: report.uricAcid ?? null,
+    creatine_kinase: report.creatineKinase ?? null,
+    got: report.got ?? null,
+    gpt: report.gpt ?? null,
+    creatinine: report.creatinine ?? null,
+    egfr: report.egfr ?? null,
+    total_cholesterol: report.totalCholesterol ?? null,
+    ldl: report.ldl ?? null,
+    hdl: report.hdl ?? null,
+    triglycerides: report.triglycerides ?? null,
+    notes: report.notes ?? null,
+  });
+}
+
+export async function deleteHealthReportDb(id: string) {
+  await supabase.from('health_reports').delete().eq('id', id);
+}
+
+export async function fetchHealthReports(userId: string): Promise<HealthReport[]> {
+  const { data } = await supabase.from('health_reports').select('*').eq('user_id', userId).order('date', { ascending: false });
+  if (!data) return [];
+  return data.map((r) => ({
+    id: r.id,
+    date: r.date,
+    testosterone: r.testosterone ?? undefined,
+    freeTestosterone: r.free_testosterone ?? undefined,
+    tsh: r.tsh ?? undefined,
+    t3: r.t3 ?? undefined,
+    t4: r.t4 ?? undefined,
+    cortisol: r.cortisol ?? undefined,
+    fastingInsulin: r.fasting_insulin ?? undefined,
+    fastingGlucose: r.fasting_glucose ?? undefined,
+    homaIR: r.homa_ir ?? undefined,
+    vitaminD: r.vitamin_d ?? undefined,
+    ferritin: r.ferritin ?? undefined,
+    hemoglobin: r.hemoglobin ?? undefined,
+    vitaminB12: r.vitamin_b12 ?? undefined,
+    zinc: r.zinc ?? undefined,
+    rbcMagnesium: r.rbc_magnesium ?? undefined,
+    hsCRP: r.hs_crp ?? undefined,
+    uricAcid: r.uric_acid ?? undefined,
+    creatineKinase: r.creatine_kinase ?? undefined,
+    got: r.got ?? undefined,
+    gpt: r.gpt ?? undefined,
+    creatinine: r.creatinine ?? undefined,
+    egfr: r.egfr ?? undefined,
+    totalCholesterol: r.total_cholesterol ?? undefined,
+    ldl: r.ldl ?? undefined,
+    hdl: r.hdl ?? undefined,
+    triglycerides: r.triglycerides ?? undefined,
+    notes: r.notes ?? undefined,
+  }));
+}
+
 // ─── Load All Data ────────────────────────────────────────────────────────────
 
 export async function fetchAllUserData(userId: string) {
-  const [profile, foodEntries, exerciseEntries, weightEntries, favoriteMeals, stravaTokens] =
+  const [profile, foodEntries, exerciseEntries, weightEntries, favoriteMeals, stravaTokens, healthReports] =
     await Promise.all([
       fetchProfile(userId),
       fetchFoodEntries(userId),
@@ -234,6 +311,7 @@ export async function fetchAllUserData(userId: string) {
       fetchWeightEntries(userId),
       fetchFavoriteMeals(userId),
       fetchStravaTokens(userId),
+      fetchHealthReports(userId),
     ]);
-  return { profile, foodEntries, exerciseEntries, weightEntries, favoriteMeals, stravaTokens };
+  return { profile, foodEntries, exerciseEntries, weightEntries, favoriteMeals, stravaTokens, healthReports };
 }
