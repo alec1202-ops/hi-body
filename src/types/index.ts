@@ -62,9 +62,12 @@ export interface ExerciseEntry {
 export interface WeightEntry {
   id: string;
   date: string;
-  weight: number; // kg
-  bodyFat?: number; // %
-  muscleMass?: number; // kg
+  weight: number;    // kg
+  bmi?: number;      // auto-calculated or manual
+  bodyFat?: number;  // %
+  muscleMass?: number; // kg (skeletal muscle mass)
+  boneMass?: number; // kg
+  bodyWater?: number; // %
   notes?: string;
 }
 

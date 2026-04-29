@@ -158,8 +158,11 @@ export async function upsertWeightEntry(userId: string, entry: WeightEntry) {
     user_id: userId,
     date: entry.date,
     weight: entry.weight,
+    bmi: entry.bmi ?? null,
     body_fat: entry.bodyFat ?? null,
     muscle_mass: entry.muscleMass ?? null,
+    bone_mass: entry.boneMass ?? null,
+    body_water: entry.bodyWater ?? null,
     notes: entry.notes ?? null,
   });
 }
@@ -175,8 +178,11 @@ export async function fetchWeightEntries(userId: string): Promise<WeightEntry[]>
     id: r.id,
     date: r.date,
     weight: r.weight,
+    bmi: r.bmi ?? undefined,
     bodyFat: r.body_fat ?? undefined,
     muscleMass: r.muscle_mass ?? undefined,
+    boneMass: r.bone_mass ?? undefined,
+    bodyWater: r.body_water ?? undefined,
     notes: r.notes ?? undefined,
   }));
 }
