@@ -181,12 +181,13 @@ function MealForm({ initial, onSave, onClose }: MealFormProps) {
 
   function handleSubmit() {
     if (!name.trim()) { setError('請輸入食物名稱'); return; }
-    onSave({
+    const data = {
       name, category, servingSize, nutrition,
       aliases: aliases.split(',').map((s) => s.trim()).filter(Boolean),
       imageUrl: photo?.preview,
-    });
-    onClose();
+    };
+    onClose(); // close first so modal always dismisses
+    onSave(data);
   }
 
   return (

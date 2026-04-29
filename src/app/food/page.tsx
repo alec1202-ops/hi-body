@@ -117,7 +117,7 @@ function AddFoodForm({ onAdd, onClose, date, favoriteMeals }: AddFoodFormProps) 
 
   function handleSubmit() {
     if (!name.trim()) { setError('請輸入食物名稱'); return; }
-    onAdd({
+    const entry = {
       date,
       mealType,
       name,
@@ -126,8 +126,9 @@ function AddFoodForm({ onAdd, onClose, date, favoriteMeals }: AddFoodFormProps) 
       servingSize,
       imageUrl: photo?.preview,
       estimatedByAI: tab === 'ai',
-    });
-    onClose();
+    };
+    onClose(); // close first so modal always dismisses
+    onAdd(entry);
   }
 
   return (
