@@ -144,22 +144,33 @@ function MealForm({ initial, onSave, onClose }: MealFormProps) {
   const [nutrition, setNutrition] = useState<NutritionInfo>(
     initial?.nutrition || { calories: 0, protein: 0, carbs: 0, fat: 0 }
   );
-  const [photo, setPhoto] = useState<{ preview: string } | null>(initial?.imageUrl ? { preview: initial.imageUrl } : null);
+  const [photo, setPhoto] = useState<{ base64: string; mimeType: string; preview: string } | null>(
+    initial?.imageUrl ? { base64: '', mimeType: '', preview: initial.imageUrl } : null
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   async function autoFill() {
-    if (!name.trim()) { setError('請先輸入食物名稱'); return; }
+    if (!photo && !name.trim()) { setError('請先輸入食物名稱或上傳照片'); return; }
     setLoading(true); setError('');
     try {
+      let body: Record<string, unknown>;
+      if (photo?.base64) {
+        // Photo analysis
+        body = { imageBase64: photo.base64, mimeType: photo.mimeType, favoriteMeals: [] };
+      } else {
+        // Name-based estimation
+        body = { foodName: name, favoriteMeals: [] };
+      }
       const res = await fetch('/api/analyze-food', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ foodName: name, favoriteMeals: [] }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (data.result) {
         const r = data.result;
+        if (r.name && !name.trim()) setName(r.name);
         setCategory(r.category || 'solid');
         setServingSize(r.servingSize || '');
         setNutrition({ calories: r.calories || 0, protein: r.protein || 0, carbs: r.carbs || 0, fat: r.fat || 0 });
@@ -203,7 +214,7 @@ function MealForm({ initial, onSave, onClose }: MealFormProps) {
                 className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-400"
               />
               <Button variant="secondary" size="sm" onClick={autoFill} disabled={loading}>
-                {loading ? '...' : '✨ AI'}
+                {loading ? '...' : photo?.base64 ? '📸 AI' : '✨ AI'}
               </Button>
             </div>
             <input
@@ -245,7 +256,7 @@ function MealForm({ initial, onSave, onClose }: MealFormProps) {
               ))}
             </div>
             <PhotoUpload
-              onPhoto={(_, __, preview) => setPhoto({ preview })}
+              onPhoto={(base64, mimeType, preview) => setPhoto({ base64, mimeType, preview })}
               preview={photo?.preview}
               onClear={() => setPhoto(null)}
               label="新增食物圖片（選填）"
