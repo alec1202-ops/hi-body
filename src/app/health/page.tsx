@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Brain, Plus, Trash2, ChevronDown, ChevronUp, Sparkles, AlertTriangle, CheckCircle, Info, Loader2, Pencil } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Brain, Plus, Trash2, ChevronDown, ChevronUp, Sparkles, AlertTriangle, CheckCircle, Info, Loader2, Pencil, FileUp, ScanLine } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -77,6 +77,9 @@ function ReportForm({ initial, onSave, onClose }: {
   const [values, setValues] = useState<Partial<HealthReport>>(initial || {});
   const [notes, setNotes] = useState(initial?.notes || '');
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ hormones: true });
+  const [extracting, setExtracting] = useState(false);
+  const [extractMsg, setExtractMsg] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
 
   function setVal(key: string, v: string) {
     const num = parseFloat(v);
@@ -87,6 +90,47 @@ function ReportForm({ initial, onSave, onClose }: {
     const data: Omit<HealthReport, 'id'> = { ...values, date, notes: notes || undefined };
     onClose();
     onSave(data);
+  }
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setExtracting(true);
+    setExtractMsg('AI 識別中，請稍候...');
+    try {
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        const result = ev.target?.result as string;
+        const base64 = result.split(',')[1];
+        const mimeType = file.type || 'image/jpeg';
+        const res = await fetch('/api/extract-health-report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ base64, mimeType }),
+        });
+        const data = await res.json();
+        if (data.values && Object.keys(data.values).length > 0) {
+          setValues((prev) => ({ ...prev, ...data.values }));
+          // Auto-open groups that have extracted data
+          const extracted = Object.keys(data.values);
+          const newOpen: Record<string, boolean> = { hormones: true };
+          FIELD_GROUPS.forEach((g) => {
+            if (g.fields.some((f) => extracted.includes(f.key))) newOpen[g.id] = true;
+          });
+          setOpenGroups(newOpen);
+          setExtractMsg(`✅ 成功識別 ${data.count} 項數據，請確認後儲存`);
+        } else {
+          setExtractMsg('⚠️ 無法識別數據，請手動輸入或換一張更清晰的照片');
+        }
+        setExtracting(false);
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      setExtractMsg('❌ 識別失敗，請重試');
+      setExtracting(false);
+    }
+    // Reset input so same file can be re-uploaded
+    e.target.value = '';
   }
 
   return (
@@ -106,6 +150,27 @@ function ReportForm({ initial, onSave, onClose }: {
             <label className="text-xs text-gray-500 mb-1 block">檢查日期</label>
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
               className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-400" />
+          </div>
+
+          {/* AI Upload */}
+          <div className="mb-4">
+            <button
+              onClick={() => fileRef.current?.click()}
+              disabled={extracting}
+              className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-purple-200 rounded-2xl text-sm font-medium text-purple-600 hover:bg-purple-50 hover:border-purple-300 transition-colors disabled:opacity-60"
+            >
+              {extracting
+                ? <><Loader2 size={18} className="animate-spin" /> AI 識別中...</>
+                : <><ScanLine size={18} /> 上傳健檢報告讓 AI 自動填入數值</>
+              }
+            </button>
+            <p className="text-[10px] text-gray-400 text-center mt-1">支援照片（JPG/PNG）或 PDF 文件</p>
+            <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={handleFileUpload} />
+            {extractMsg && (
+              <p className={`text-xs mt-2 text-center font-medium ${extractMsg.startsWith('✅') ? 'text-emerald-600' : extractMsg.startsWith('⚠️') ? 'text-orange-500' : 'text-red-500'}`}>
+                {extractMsg}
+              </p>
+            )}
           </div>
 
           {/* Field Groups */}
