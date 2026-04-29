@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { BottomNav } from '@/components/BottomNav';
 import { ServiceWorkerRegistrar } from '@/components/ServiceWorkerRegistrar';
+import { AuthProvider } from '@/lib/auth-context';
 
 export const metadata: Metadata = {
   title: 'Hi Body',
@@ -36,9 +37,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png" />
       </head>
       <body className="min-h-full bg-slate-50">
-        <ServiceWorkerRegistrar />
-        {children}
-        <BottomNav />
+        <AuthProvider>
+          <ServiceWorkerRegistrar />
+          {children}
+          <BottomNav />
+        </AuthProvider>
       </body>
     </html>
   );

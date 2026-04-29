@@ -5,7 +5,8 @@ import { useAppStore, calculateTDEE } from '@/lib/store';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import type { UserProfile } from '@/types';
-import { User, Zap, Target, TrendingDown, TrendingUp, Minus, CheckCircle } from 'lucide-react';
+import { User, Zap, Target, TrendingDown, TrendingUp, Minus, CheckCircle, LogOut } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
 
 const ACTIVITY_OPTIONS = [
   { value: 'sedentary', label: '久坐', desc: '幾乎不運動' },
@@ -23,6 +24,7 @@ const GOAL_OPTIONS = [
 
 export default function ProfilePage() {
   const { profile, setProfile } = useAppStore();
+  const { user, signOut } = useAuth();
   const [form, setForm] = useState<Partial<UserProfile>>({
     name: '',
     age: 25,
@@ -89,14 +91,22 @@ export default function ProfilePage() {
 
   return (
     <div className="page-container px-4 pt-5">
-      <div className="flex items-center gap-3 mb-5">
-        <div className="w-10 h-10 bg-emerald-100 rounded-2xl flex items-center justify-center">
-          <User size={20} className="text-emerald-600" />
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-emerald-100 rounded-2xl flex items-center justify-center">
+            <User size={20} className="text-emerald-600" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">個人設定</h1>
+            <p className="text-xs text-gray-400">{user?.email ?? '設定資料以計算 BMR 與目標'}</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">個人設定</h1>
-          <p className="text-xs text-gray-400">設定資料以計算 BMR 與目標</p>
-        </div>
+        <button
+          onClick={signOut}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+        >
+          <LogOut size={14} /> 登出
+        </button>
       </div>
 
       {/* Basic info */}

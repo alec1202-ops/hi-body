@@ -11,6 +11,7 @@ import type {
   DailySummary,
   StravaTokens,
 } from '@/types';
+import * as db from './db';
 
 interface AppState {
   profile: UserProfile | null;
@@ -19,6 +20,11 @@ interface AppState {
   exerciseEntries: ExerciseEntry[];
   weightEntries: WeightEntry[];
   stravaTokens: StravaTokens | null;
+  userId: string | null; // current logged-in user
+
+  setUserId: (id: string | null) => void;
+  loadFromCloud: (userId: string) => Promise<void>;
+  clearLocalData: () => void;
 
   setProfile: (profile: UserProfile) => void;
   setStravaTokens: (tokens: StravaTokens | null) => void;
@@ -45,7 +51,6 @@ interface AppState {
 
 function calculateBMR(profile: UserProfile): number {
   if (profile.customBMR && profile.customBMR > 0) return profile.customBMR;
-  // Mifflin-St Jeor Equation
   const { weight, height, age, gender } = profile;
   const base = 10 * weight + 6.25 * height - 5 * age;
   return gender === 'male' ? base + 5 : base - 161;
@@ -68,61 +73,116 @@ export const useAppStore = create<AppState>()(
       exerciseEntries: [],
       weightEntries: [],
       stravaTokens: null,
+      userId: null,
 
-      setProfile: (profile) => set({ profile }),
-      setStravaTokens: (stravaTokens) => set({ stravaTokens }),
+      setUserId: (userId) => set({ userId }),
 
-      addFavoriteMeal: (meal) =>
-        set((s) => ({ favoriteMeals: [...s.favoriteMeals, meal] })),
-      updateFavoriteMeal: (id, meal) =>
-        set((s) => ({
-          favoriteMeals: s.favoriteMeals.map((m) =>
-            m.id === id ? { ...m, ...meal } : m
-          ),
-        })),
-      deleteFavoriteMeal: (id) =>
-        set((s) => ({
-          favoriteMeals: s.favoriteMeals.filter((m) => m.id !== id),
-        })),
+      loadFromCloud: async (userId) => {
+        set({ userId });
+        const data = await db.fetchAllUserData(userId);
+        set({
+          profile: data.profile ?? get().profile,
+          foodEntries: data.foodEntries.length > 0 ? data.foodEntries : get().foodEntries,
+          exerciseEntries: data.exerciseEntries.length > 0 ? data.exerciseEntries : get().exerciseEntries,
+          weightEntries: data.weightEntries.length > 0 ? data.weightEntries : get().weightEntries,
+          favoriteMeals: data.favoriteMeals.length > 0 ? data.favoriteMeals : get().favoriteMeals,
+          stravaTokens: data.stravaTokens ?? get().stravaTokens,
+        });
+      },
 
-      addFoodEntry: (entry) =>
-        set((s) => ({ foodEntries: [...s.foodEntries, entry] })),
-      updateFoodEntry: (id, entry) =>
-        set((s) => ({
-          foodEntries: s.foodEntries.map((e) =>
-            e.id === id ? { ...e, ...entry } : e
-          ),
-        })),
-      deleteFoodEntry: (id) =>
-        set((s) => ({
-          foodEntries: s.foodEntries.filter((e) => e.id !== id),
-        })),
+      clearLocalData: () => set({
+        profile: null,
+        favoriteMeals: [],
+        foodEntries: [],
+        exerciseEntries: [],
+        weightEntries: [],
+        stravaTokens: null,
+        userId: null,
+      }),
 
-      addExerciseEntry: (entry) =>
-        set((s) => ({ exerciseEntries: [...s.exerciseEntries, entry] })),
-      updateExerciseEntry: (id, entry) =>
-        set((s) => ({
-          exerciseEntries: s.exerciseEntries.map((e) =>
-            e.id === id ? { ...e, ...entry } : e
-          ),
-        })),
-      deleteExerciseEntry: (id) =>
-        set((s) => ({
-          exerciseEntries: s.exerciseEntries.filter((e) => e.id !== id),
-        })),
+      setProfile: (profile) => {
+        set({ profile });
+        const { userId } = get();
+        if (userId) db.upsertProfile(userId, profile);
+      },
 
-      addWeightEntry: (entry) =>
-        set((s) => ({ weightEntries: [...s.weightEntries, entry] })),
-      updateWeightEntry: (id, entry) =>
+      setStravaTokens: (stravaTokens) => {
+        set({ stravaTokens });
+        const { userId } = get();
+        if (userId) db.upsertStravaTokens(userId, stravaTokens);
+      },
+
+      addFavoriteMeal: (meal) => {
+        set((s) => ({ favoriteMeals: [...s.favoriteMeals, meal] }));
+        const { userId } = get();
+        if (userId) db.upsertFavoriteMeal(userId, meal);
+      },
+      updateFavoriteMeal: (id, meal) => {
         set((s) => ({
-          weightEntries: s.weightEntries.map((e) =>
-            e.id === id ? { ...e, ...entry } : e
-          ),
-        })),
-      deleteWeightEntry: (id) =>
+          favoriteMeals: s.favoriteMeals.map((m) => m.id === id ? { ...m, ...meal } : m),
+        }));
+        const { userId, favoriteMeals } = get();
+        const updated = favoriteMeals.find((m) => m.id === id);
+        if (userId && updated) db.upsertFavoriteMeal(userId, updated);
+      },
+      deleteFavoriteMeal: (id) => {
+        set((s) => ({ favoriteMeals: s.favoriteMeals.filter((m) => m.id !== id) }));
+        db.deleteFavoriteMealDb(id);
+      },
+
+      addFoodEntry: (entry) => {
+        set((s) => ({ foodEntries: [...s.foodEntries, entry] }));
+        const { userId } = get();
+        if (userId) db.upsertFoodEntry(userId, entry);
+      },
+      updateFoodEntry: (id, entry) => {
         set((s) => ({
-          weightEntries: s.weightEntries.filter((e) => e.id !== id),
-        })),
+          foodEntries: s.foodEntries.map((e) => e.id === id ? { ...e, ...entry } : e),
+        }));
+        const { userId, foodEntries } = get();
+        const updated = foodEntries.find((e) => e.id === id);
+        if (userId && updated) db.upsertFoodEntry(userId, updated);
+      },
+      deleteFoodEntry: (id) => {
+        set((s) => ({ foodEntries: s.foodEntries.filter((e) => e.id !== id) }));
+        db.deleteFoodEntryDb(id);
+      },
+
+      addExerciseEntry: (entry) => {
+        set((s) => ({ exerciseEntries: [...s.exerciseEntries, entry] }));
+        const { userId } = get();
+        if (userId) db.upsertExerciseEntry(userId, entry);
+      },
+      updateExerciseEntry: (id, entry) => {
+        set((s) => ({
+          exerciseEntries: s.exerciseEntries.map((e) => e.id === id ? { ...e, ...entry } : e),
+        }));
+        const { userId, exerciseEntries } = get();
+        const updated = exerciseEntries.find((e) => e.id === id);
+        if (userId && updated) db.upsertExerciseEntry(userId, updated);
+      },
+      deleteExerciseEntry: (id) => {
+        set((s) => ({ exerciseEntries: s.exerciseEntries.filter((e) => e.id !== id) }));
+        db.deleteExerciseEntryDb(id);
+      },
+
+      addWeightEntry: (entry) => {
+        set((s) => ({ weightEntries: [...s.weightEntries, entry] }));
+        const { userId } = get();
+        if (userId) db.upsertWeightEntry(userId, entry);
+      },
+      updateWeightEntry: (id, entry) => {
+        set((s) => ({
+          weightEntries: s.weightEntries.map((e) => e.id === id ? { ...e, ...entry } : e),
+        }));
+        const { userId, weightEntries } = get();
+        const updated = weightEntries.find((e) => e.id === id);
+        if (userId && updated) db.upsertWeightEntry(userId, updated);
+      },
+      deleteWeightEntry: (id) => {
+        set((s) => ({ weightEntries: s.weightEntries.filter((e) => e.id !== id) }));
+        db.deleteWeightEntryDb(id);
+      },
 
       getDailySummary: (date) => {
         const { profile, foodEntries, exerciseEntries, weightEntries } = get();
@@ -137,9 +197,7 @@ export const useAppStore = create<AppState>()(
         const exerciseCalories = dayExercise.reduce((s, e) => s + e.caloriesBurned, 0);
 
         const bmr = profile ? calculateBMR(profile) : 0;
-        const tdee = profile
-          ? bmr * ACTIVITY_MULTIPLIERS[profile.activityLevel]
-          : 0;
+        const tdee = profile ? bmr * ACTIVITY_MULTIPLIERS[profile.activityLevel] : 0;
         const totalCaloriesOut = tdee + exerciseCalories;
 
         return {
@@ -175,10 +233,6 @@ export function calculateTDEE(profile: UserProfile): number {
   return Math.round(bmr * ACTIVITY_MULTIPLIERS[profile.activityLevel]);
 }
 
-export function estimateWeightChange(
-  netCaloriesPerDay: number,
-  days: number
-): number {
-  // 7700 kcal ≈ 1 kg body weight
+export function estimateWeightChange(netCaloriesPerDay: number, days: number): number {
   return (netCaloriesPerDay * days) / 7700;
 }
