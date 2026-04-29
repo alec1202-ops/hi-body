@@ -70,7 +70,6 @@ export function PhotoUpload({ onPhoto, preview, onClear, label = 'Add Photo' }: 
         ref={fileRef}
         type="file"
         accept="image/*"
-        capture="environment"
         className="hidden"
         onChange={handleChange}
       />
