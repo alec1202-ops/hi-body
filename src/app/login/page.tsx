@@ -1,12 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Mail, Lock, Eye, EyeOff, Dumbbell } from 'lucide-react';
 
 export default function LoginPage() {
-  const router = useRouter();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,23 +19,33 @@ export default function LoginPage() {
     setError('');
     setMessage('');
 
-    if (mode === 'login') {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        setError('登入失敗：' + (error.message === 'Invalid login credentials' ? '信箱或密碼錯誤' : error.message));
+    try {
+      if (mode === 'login') {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+          setError('登入失敗：' + (error.message === 'Invalid login credentials' ? '信箱或密碼錯誤' : error.message));
+          setLoading(false);
+        } else if (data.session) {
+          // Full page reload ensures middleware sees fresh cookies
+          window.location.href = '/';
+        } else {
+          setError('登入失敗：請稍後再試');
+          setLoading(false);
+        }
       } else {
-        router.push('/');
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) {
+          setError('註冊失敗：' + error.message);
+        } else {
+          setMessage('✅ 註冊成功！現在可以登入了。');
+          setMode('login');
+        }
+        setLoading(false);
       }
-    } else {
-      const { error } = await supabase.auth.signUp({ email, password });
-      if (error) {
-        setError('註冊失敗：' + error.message);
-      } else {
-        setMessage('✅ 註冊成功！請查看信箱確認連結，然後登入。');
-        setMode('login');
-      }
+    } catch (err) {
+      setError('發生錯誤：' + String(err));
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   return (
