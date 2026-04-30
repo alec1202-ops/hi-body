@@ -199,7 +199,7 @@ function AddExerciseForm({ onAdd, onClose, date, userWeight }: AddExerciseFormPr
 
 // ─── Strava Connect Banner ────────────────────────────────────────────────
 function StravaBanner() {
-  const { stravaTokens, setStravaTokens, addExerciseEntry, exerciseEntries } = useAppStore();
+  const { stravaTokens, setStravaTokens, addExerciseEntry, updateExerciseEntry, exerciseEntries } = useAppStore();
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState('');
 
@@ -232,22 +232,44 @@ function StravaBanner() {
         setStravaTokens({ ...stravaTokens, ...data.newTokens });
       }
 
-      // Deduplicate by Strava ID in notes, then add new ones
-      const existingStravaIds = new Set(
+      // Build map: stravaId → existing entry
+      const stravaIdToEntry = new Map(
         exerciseEntries
-          .map((e) => e.notes?.match(/Strava ID: (\d+)/)?.[1])
-          .filter(Boolean)
+          .map((e) => {
+            const sid = e.notes?.match(/Strava ID: (\d+)/)?.[1];
+            return sid ? [sid, e] : null;
+          })
+          .filter((x): x is [string, ExerciseEntry] => x !== null)
       );
 
       let added = 0;
+      let updated = 0;
       for (const entry of (data.entries as Omit<ExerciseEntry, 'id'>[])) {
         const stravaId = entry.notes?.match(/Strava ID: (\d+)/)?.[1];
-        if (stravaId && existingStravaIds.has(stravaId)) continue;
-        addExerciseEntry({ ...entry, id: crypto.randomUUID() });
-        added++;
+        const existing = stravaId ? stravaIdToEntry.get(stravaId) : undefined;
+
+        if (existing) {
+          // Already exists — update if calories or duration changed
+          const calsChanged = entry.caloriesBurned > 0 && entry.caloriesBurned !== existing.caloriesBurned;
+          const durChanged = entry.duration !== existing.duration;
+          if (calsChanged || durChanged) {
+            updateExerciseEntry(existing.id, {
+              caloriesBurned: entry.caloriesBurned,
+              duration: entry.duration,
+              notes: entry.notes,
+            });
+            updated++;
+          }
+        } else {
+          addExerciseEntry({ ...entry, id: crypto.randomUUID() });
+          added++;
+        }
       }
 
-      setSyncMsg(added > 0 ? `✅ 已匯入 ${added} 筆新活動` : '已是最新，無新活動');
+      const parts = [];
+      if (added > 0) parts.push(`新增 ${added} 筆`);
+      if (updated > 0) parts.push(`更新 ${updated} 筆`);
+      setSyncMsg(parts.length > 0 ? `✅ ${parts.join('、')}` : '已是最新，無變動');
     } catch {
       setSyncMsg('同步失敗，請稍後再試');
     } finally {
