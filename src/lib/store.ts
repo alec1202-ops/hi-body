@@ -86,15 +86,40 @@ export const useAppStore = create<AppState>()(
 
       loadFromCloud: async (userId) => {
         set({ userId });
+        const local = get();
         const data = await db.fetchAllUserData(userId);
+
+        // Build merged state: cloud wins if it has data, otherwise keep local.
+        // Also upload any local-only records that never reached the cloud.
+        const cloudFoodIds = new Set(data.foodEntries.map((e) => e.id));
+        const cloudExerciseIds = new Set(data.exerciseEntries.map((e) => e.id));
+        const cloudWeightIds = new Set(data.weightEntries.map((e) => e.id));
+        const cloudMealIds = new Set(data.favoriteMeals.map((m) => m.id));
+        const cloudReportIds = new Set(data.healthReports.map((r) => r.id));
+
+        // Upload local-only records to cloud
+        local.foodEntries.filter((e) => !cloudFoodIds.has(e.id)).forEach((e) => db.upsertFoodEntry(userId, e));
+        local.exerciseEntries.filter((e) => !cloudExerciseIds.has(e.id)).forEach((e) => db.upsertExerciseEntry(userId, e));
+        local.weightEntries.filter((e) => !cloudWeightIds.has(e.id)).forEach((e) => db.upsertWeightEntry(userId, e));
+        local.favoriteMeals.filter((m) => !cloudMealIds.has(m.id)).forEach((m) => db.upsertFavoriteMeal(userId, m));
+        local.healthReports.filter((r) => !cloudReportIds.has(r.id)).forEach((r) => db.upsertHealthReport(userId, r));
+        if (local.profile && !data.profile) db.upsertProfile(userId, local.profile);
+
+        // Merge: union of cloud + local (cloud wins on conflict)
+        const mergedFood = [...data.foodEntries, ...local.foodEntries.filter((e) => !cloudFoodIds.has(e.id))];
+        const mergedExercise = [...data.exerciseEntries, ...local.exerciseEntries.filter((e) => !cloudExerciseIds.has(e.id))];
+        const mergedWeight = [...data.weightEntries, ...local.weightEntries.filter((e) => !cloudWeightIds.has(e.id))];
+        const mergedMeals = [...data.favoriteMeals, ...local.favoriteMeals.filter((m) => !cloudMealIds.has(m.id))];
+        const mergedReports = [...data.healthReports, ...local.healthReports.filter((r) => !cloudReportIds.has(r.id))];
+
         set({
-          profile: data.profile ?? get().profile,
-          foodEntries: data.foodEntries.length > 0 ? data.foodEntries : get().foodEntries,
-          exerciseEntries: data.exerciseEntries.length > 0 ? data.exerciseEntries : get().exerciseEntries,
-          weightEntries: data.weightEntries.length > 0 ? data.weightEntries : get().weightEntries,
-          favoriteMeals: data.favoriteMeals.length > 0 ? data.favoriteMeals : get().favoriteMeals,
-          healthReports: data.healthReports.length > 0 ? data.healthReports : get().healthReports,
-          stravaTokens: data.stravaTokens ?? get().stravaTokens,
+          profile: data.profile ?? local.profile,
+          foodEntries: mergedFood.length > 0 ? mergedFood : local.foodEntries,
+          exerciseEntries: mergedExercise.length > 0 ? mergedExercise : local.exerciseEntries,
+          weightEntries: mergedWeight.length > 0 ? mergedWeight : local.weightEntries,
+          favoriteMeals: mergedMeals.length > 0 ? mergedMeals : local.favoriteMeals,
+          healthReports: mergedReports.length > 0 ? mergedReports : local.healthReports,
+          stravaTokens: data.stravaTokens ?? local.stravaTokens,
         });
       },
 
