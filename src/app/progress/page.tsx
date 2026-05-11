@@ -425,7 +425,12 @@ export default function ProgressPage() {
   }
 
   function handleGarminImport(entries: Omit<WeightEntry, 'id'>[]) {
-    entries.forEach((e) => addWeightEntry({ ...e, id: crypto.randomUUID() }));
+    entries.forEach((e) => {
+      const bmi = profile?.height
+        ? parseFloat((e.weight / Math.pow(profile.height / 100, 2)).toFixed(1))
+        : e.bmi;
+      addWeightEntry({ ...e, id: crypto.randomUUID(), bmi });
+    });
   }
 
   const stats = [
