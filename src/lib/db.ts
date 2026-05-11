@@ -3,7 +3,7 @@
  * Each function is fire-and-forget safe (silent on error).
  */
 import { supabase } from './supabase';
-import type { UserProfile, FoodEntry, ExerciseEntry, WeightEntry, FavoriteMeal, StravaTokens, HealthReport } from '@/types';
+import type { UserProfile, FoodEntry, ExerciseEntry, WeightEntry, FavoriteMeal, StravaTokens, HealthReport, WaterEntry, SupplementEntry, SupplementTemplate } from '@/types';
 
 // ─── Profile ─────────────────────────────────────────────────────────────────
 
@@ -20,6 +20,7 @@ export async function upsertProfile(userId: string, profile: UserProfile) {
     goal: profile.goal,
     daily_calorie_target: profile.dailyCalorieTarget,
     daily_protein_target: profile.dailyProteinTarget,
+    ...(profile.dailyWaterTarget != null ? { daily_water_target: profile.dailyWaterTarget } : {}),
     custom_bmr: profile.customBMR ?? null,
     updated_at: new Date().toISOString(),
   });
@@ -39,6 +40,7 @@ export async function fetchProfile(userId: string): Promise<UserProfile | null> 
     goal: data.goal ?? 'lose',
     dailyCalorieTarget: data.daily_calorie_target ?? 0,
     dailyProteinTarget: data.daily_protein_target ?? 0,
+    dailyWaterTarget: data.daily_water_target ?? 2000,
     customBMR: data.custom_bmr ?? undefined,
   };
 }
@@ -74,7 +76,8 @@ export async function fetchStravaTokens(userId: string): Promise<StravaTokens | 
 // ─── Food Entries ─────────────────────────────────────────────────────────────
 
 export async function upsertFoodEntry(userId: string, entry: FoodEntry) {
-  await supabase.from('food_entries').upsert({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const payload: Record<string, any> = {
     id: entry.id,
     user_id: userId,
     date: entry.date,
@@ -89,7 +92,11 @@ export async function upsertFoodEntry(userId: string, entry: FoodEntry) {
     favorite_meal_id: entry.favoriteMealId ?? null,
     estimated_by_ai: entry.estimatedByAI,
     timestamp: entry.timestamp,
-  });
+  };
+  // Only include ai_feedback if the migration has been applied
+  if (entry.aiFeedback !== undefined) payload.ai_feedback = entry.aiFeedback;
+  const { error } = await supabase.from('food_entries').upsert(payload);
+  if (error) console.error('[db] upsertFoodEntry failed:', error.message, entry.id);
 }
 
 export async function deleteFoodEntryDb(id: string) {
@@ -109,6 +116,7 @@ export async function fetchFoodEntries(userId: string): Promise<FoodEntry[]> {
     servingSize: r.serving_size ?? '',
     favoriteMealId: r.favorite_meal_id ?? undefined,
     estimatedByAI: r.estimated_by_ai,
+    aiFeedback: (r.ai_feedback ?? undefined) as 'accurate' | 'inaccurate' | undefined,
     timestamp: r.timestamp,
   }));
 }
@@ -116,7 +124,7 @@ export async function fetchFoodEntries(userId: string): Promise<FoodEntry[]> {
 // ─── Exercise Entries ─────────────────────────────────────────────────────────
 
 export async function upsertExerciseEntry(userId: string, entry: ExerciseEntry) {
-  await supabase.from('exercise_entries').upsert({
+  const { error } = await supabase.from('exercise_entries').upsert({
     id: entry.id,
     user_id: userId,
     date: entry.date,
@@ -128,6 +136,7 @@ export async function upsertExerciseEntry(userId: string, entry: ExerciseEntry) 
     estimated_by_ai: entry.estimatedByAI,
     timestamp: entry.timestamp,
   });
+  if (error) console.error('[db] upsertExerciseEntry failed:', error.message, entry.id);
 }
 
 export async function deleteExerciseEntryDb(id: string) {
@@ -300,10 +309,119 @@ export async function fetchHealthReports(userId: string): Promise<HealthReport[]
   }));
 }
 
+// ─── Water Entries ────────────────────────────────────────────────────────────
+
+export async function upsertWaterEntry(userId: string, entry: WaterEntry) {
+  try {
+    await supabase.from('water_entries').upsert({
+      id: entry.id,
+      user_id: userId,
+      date: entry.date,
+      amount: entry.amount,
+      timestamp: entry.timestamp,
+    });
+  } catch { /* water_entries table may not exist yet — migration pending */ }
+}
+
+export async function deleteWaterEntryDb(id: string) {
+  try {
+    await supabase.from('water_entries').delete().eq('id', id);
+  } catch { /* ignore */ }
+}
+
+export async function fetchWaterEntries(userId: string): Promise<WaterEntry[]> {
+  try {
+    const { data } = await supabase.from('water_entries').select('*').eq('user_id', userId);
+    if (!data) return [];
+    return data.map((r) => ({
+      id: r.id,
+      date: r.date,
+      amount: r.amount,
+      timestamp: r.timestamp,
+    }));
+  } catch { return []; }
+}
+
+// ─── Supplement Entries ───────────────────────────────────────────────────────
+
+export async function upsertSupplementEntry(userId: string, entry: SupplementEntry) {
+  try {
+    const { error } = await supabase.from('supplement_entries').upsert({
+      id: entry.id,
+      user_id: userId,
+      date: entry.date,
+      name: entry.name,
+      dose: entry.dose,
+      unit: entry.unit,
+      notes: entry.notes ?? null,
+      template_id: entry.templateId ?? null,
+      timestamp: entry.timestamp,
+    });
+    if (error) console.error('[db] upsertSupplementEntry failed:', error.message, entry.id);
+  } catch { /* table may not exist yet */ }
+}
+
+export async function deleteSupplementEntryDb(id: string) {
+  try { await supabase.from('supplement_entries').delete().eq('id', id); } catch { /* ignore */ }
+}
+
+export async function fetchSupplementEntries(userId: string): Promise<SupplementEntry[]> {
+  try {
+    const { data } = await supabase.from('supplement_entries').select('*').eq('user_id', userId);
+    if (!data) return [];
+    return data.map((r) => ({
+      id: r.id,
+      date: r.date,
+      name: r.name,
+      dose: r.dose,
+      unit: r.unit,
+      notes: r.notes ?? undefined,
+      templateId: r.template_id ?? undefined,
+      timestamp: r.timestamp,
+    }));
+  } catch { return []; }
+}
+
+// ─── Supplement Templates ─────────────────────────────────────────────────────
+
+export async function upsertSupplementTemplate(userId: string, tpl: SupplementTemplate) {
+  try {
+    const { error } = await supabase.from('supplement_templates').upsert({
+      id: tpl.id,
+      user_id: userId,
+      name: tpl.name,
+      dose: tpl.dose,
+      unit: tpl.unit,
+      notes: tpl.notes ?? null,
+      created_at: tpl.createdAt,
+    });
+    if (error) console.error('[db] upsertSupplementTemplate failed:', error.message, tpl.id);
+  } catch { /* ignore */ }
+}
+
+export async function deleteSupplementTemplateDb(id: string) {
+  try { await supabase.from('supplement_templates').delete().eq('id', id); } catch { /* ignore */ }
+}
+
+export async function fetchSupplementTemplates(userId: string): Promise<SupplementTemplate[]> {
+  try {
+    const { data } = await supabase.from('supplement_templates').select('*').eq('user_id', userId).order('created_at', { ascending: true });
+    if (!data) return [];
+    return data.map((r) => ({
+      id: r.id,
+      name: r.name,
+      dose: r.dose,
+      unit: r.unit,
+      notes: r.notes ?? undefined,
+      createdAt: r.created_at,
+    }));
+  } catch { return []; }
+}
+
 // ─── Load All Data ────────────────────────────────────────────────────────────
 
 export async function fetchAllUserData(userId: string) {
-  const [profile, foodEntries, exerciseEntries, weightEntries, favoriteMeals, stravaTokens, healthReports] =
+  const [profile, foodEntries, exerciseEntries, weightEntries, favoriteMeals, stravaTokens, healthReports, waterEntries, supplementEntries, supplementTemplates] =
     await Promise.all([
       fetchProfile(userId),
       fetchFoodEntries(userId),
@@ -312,6 +430,9 @@ export async function fetchAllUserData(userId: string) {
       fetchFavoriteMeals(userId),
       fetchStravaTokens(userId),
       fetchHealthReports(userId),
+      fetchWaterEntries(userId),
+      fetchSupplementEntries(userId),
+      fetchSupplementTemplates(userId),
     ]);
-  return { profile, foodEntries, exerciseEntries, weightEntries, favoriteMeals, stravaTokens, healthReports };
+  return { profile, foodEntries, exerciseEntries, weightEntries, favoriteMeals, stravaTokens, healthReports, waterEntries, supplementEntries, supplementTemplates };
 }

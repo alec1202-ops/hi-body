@@ -83,10 +83,38 @@ export async function POST(req: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const raw: any[] = await activitiesRes.json();
 
+  // Fetch detailed activity for entries missing calories.
+  // The list endpoint returns SummaryActivity which omits the calories field;
+  // only DetailedActivity has it. kilojoules is used as a fallback estimate.
+  const detailedMap = new Map<number, number>();
+  const missingCalories = raw.filter((a) => !a.calories);
+
+  await Promise.all(
+    missingCalories.map(async (a) => {
+      try {
+        const res = await fetch(
+          `https://www.strava.com/api/v3/activities/${a.id}`,
+          { headers: { Authorization: `Bearer ${currentAccessToken}` } }
+        );
+        if (!res.ok) return;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const detail: any = await res.json();
+        const kcal = detail.calories
+          ?? (detail.kilojoules ? Math.round(detail.kilojoules * 0.239) : 0);
+        detailedMap.set(a.id, kcal);
+      } catch {
+        // fall through — will use kilojoules estimate below
+      }
+    })
+  );
+
   const entries: Omit<ExerciseEntry, 'id'>[] = raw.map((a) => {
     const sportType: string = a.sport_type ?? a.type ?? 'Workout';
     const durationMins = Math.round((a.moving_time ?? a.elapsed_time ?? 0) / 60);
-    const calories = a.calories ?? 0;
+    const calories =
+      a.calories ||
+      detailedMap.get(a.id) ||
+      (a.kilojoules ? Math.round(a.kilojoules * 0.239) : 0);
     const distanceKm = a.distance ? (a.distance / 1000).toFixed(2) : null;
     const date = a.start_date_local?.slice(0, 10) ?? new Date().toISOString().slice(0, 10);
 

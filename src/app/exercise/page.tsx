@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { format } from 'date-fns';
-import { Plus, Trash2, Sparkles, Timer, Flame, Dumbbell, RefreshCw, LogOut } from 'lucide-react';
+import { format, subDays, addDays } from 'date-fns';
+import { zhTW } from 'date-fns/locale';
+import { Plus, Trash2, Sparkles, Timer, Flame, Dumbbell, RefreshCw, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -85,12 +86,12 @@ function AddExerciseForm({ onAdd, onClose, date, userWeight }: AddExerciseFormPr
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-end justify-center" onClick={onClose}>
-      <div className="bg-white w-full max-w-[480px] rounded-t-3xl max-h-[90dvh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center" onClick={onClose}>
+      <div className="bg-gray-800 w-full max-w-[480px] rounded-t-3xl max-h-[90dvh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="overflow-y-auto flex-1 min-h-0 p-5 pb-0" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
+        <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-4" />
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-gray-900">新增運動記錄</h2>
+          <h2 className="text-lg font-bold text-white">新增運動記錄</h2>
           <button
             onClick={handleSubmit}
             className="px-4 py-1.5 bg-emerald-500 text-white text-sm font-semibold rounded-xl"
@@ -100,11 +101,11 @@ function AddExerciseForm({ onAdd, onClose, date, userWeight }: AddExerciseFormPr
         </div>
 
         {/* Tab */}
-        <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-4">
-          <button onClick={() => setTab('ai')} className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors ${tab === 'ai' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}>
+        <div className="flex gap-1 bg-gray-700 rounded-xl p-1 mb-4">
+          <button onClick={() => setTab('ai')} className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors ${tab === 'ai' ? 'bg-gray-600 shadow-sm text-white' : 'text-gray-400'}`}>
             <span className="flex items-center justify-center gap-1"><Sparkles size={13} /> AI 分析</span>
           </button>
-          <button onClick={() => setTab('manual')} className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors ${tab === 'manual' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}>
+          <button onClick={() => setTab('manual')} className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors ${tab === 'manual' ? 'bg-gray-600 shadow-sm text-white' : 'text-gray-400'}`}>
             手動輸入
           </button>
         </div>
@@ -122,7 +123,7 @@ function AddExerciseForm({ onAdd, onClose, date, userWeight }: AddExerciseFormPr
               placeholder="運動名稱（選填，或由照片識別）"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-400"
+              className="w-full px-3 py-2 border border-gray-600 rounded-xl text-sm focus:outline-none focus:border-emerald-400"
             />
             <Button onClick={analyze} disabled={loading || (!photo && !name.trim())} className="w-full">
               {loading ? '分析中...' : photo ? '📸 AI 分析截圖' : '🔍 AI 估算消耗'}
@@ -136,7 +137,7 @@ function AddExerciseForm({ onAdd, onClose, date, userWeight }: AddExerciseFormPr
             <button
               key={et.value}
               onClick={() => setType(et.value)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${type === et.value ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-600'}`}
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${type === et.value ? 'bg-emerald-500 text-white' : 'bg-gray-700 text-gray-300'}`}
             >
               {et.emoji} {et.label}
             </button>
@@ -149,10 +150,10 @@ function AddExerciseForm({ onAdd, onClose, date, userWeight }: AddExerciseFormPr
             placeholder="運動名稱 *"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-400"
+            className="w-full px-3 py-2 border border-gray-600 rounded-xl text-sm focus:outline-none focus:border-emerald-400"
           />
           <div className="grid grid-cols-2 gap-2">
-            <div className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-xl">
+            <div className="flex items-center gap-2 px-3 py-2 border border-gray-600 rounded-xl bg-gray-700">
               <Timer size={15} className="text-gray-400" />
               <input
                 type="number"
@@ -160,10 +161,10 @@ function AddExerciseForm({ onAdd, onClose, date, userWeight }: AddExerciseFormPr
                 placeholder="時間（分鐘）"
                 value={duration}
                 onChange={(e) => setDuration(e.target.value)}
-                className="flex-1 text-sm focus:outline-none"
+                className="flex-1 text-sm focus:outline-none border-0 p-0 bg-transparent"
               />
             </div>
-            <div className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-xl">
+            <div className="flex items-center gap-2 px-3 py-2 border border-gray-600 rounded-xl bg-gray-700">
               <Flame size={15} className="text-orange-400" />
               <input
                 type="number"
@@ -171,7 +172,7 @@ function AddExerciseForm({ onAdd, onClose, date, userWeight }: AddExerciseFormPr
                 placeholder="消耗 (kcal)"
                 value={caloriesBurned}
                 onChange={(e) => setCaloriesBurned(e.target.value)}
-                className="flex-1 text-sm focus:outline-none"
+                className="flex-1 text-sm focus:outline-none border-0 p-0 bg-transparent"
               />
             </div>
           </div>
@@ -180,15 +181,15 @@ function AddExerciseForm({ onAdd, onClose, date, userWeight }: AddExerciseFormPr
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={2}
-            className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-400 resize-none"
+            className="w-full px-3 py-2 border border-gray-600 rounded-xl text-sm focus:outline-none focus:border-emerald-400 resize-none"
           />
         </div>
 
-        {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
+        {error && <p className="text-xs text-red-400 mb-3">{error}</p>}
         </div>
 
         {/* Sticky bottom buttons */}
-        <div className="p-4 pt-3 border-t border-gray-100 bg-white flex gap-2">
+        <div className="p-4 pt-3 border-t border-gray-700 bg-gray-800 flex gap-2">
           <Button variant="secondary" onClick={onClose} className="flex-1">取消</Button>
           <Button onClick={handleSubmit} className="flex-1 py-3 text-base">✅ 新增運動</Button>
         </div>
@@ -215,7 +216,6 @@ function StravaBanner() {
           accessToken: stravaTokens.accessToken,
           refreshToken: stravaTokens.refreshToken,
           expiresAt: stravaTokens.expiresAt,
-          // sync last 7 days
           after: Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60,
         }),
       });
@@ -227,12 +227,10 @@ function StravaBanner() {
       }
       if (!res.ok) throw new Error(data.error);
 
-      // Update tokens if refreshed
       if (data.newTokens) {
         setStravaTokens({ ...stravaTokens, ...data.newTokens });
       }
 
-      // Build map: stravaId → existing entry
       const stravaIdToEntry = new Map(
         exerciseEntries
           .map((e) => {
@@ -249,7 +247,6 @@ function StravaBanner() {
         const existing = stravaId ? stravaIdToEntry.get(stravaId) : undefined;
 
         if (existing) {
-          // Already exists — update if calories or duration changed
           const calsChanged = entry.caloriesBurned > 0 && entry.caloriesBurned !== existing.caloriesBurned;
           const durChanged = entry.duration !== existing.duration;
           if (calsChanged || durChanged) {
@@ -279,15 +276,14 @@ function StravaBanner() {
 
   if (!stravaTokens) {
     return (
-      <Card className="mb-4 border-orange-200 bg-orange-50">
+      <Card className="mb-4 border-orange-800 bg-orange-950/30">
         <CardContent className="pt-4 pb-4">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              {/* Strava orange logo */}
               <span className="text-2xl">🏃</span>
               <div>
-                <p className="text-sm font-semibold text-gray-800">連接 Strava</p>
-                <p className="text-xs text-gray-500">自動匯入跑步、騎車等運動紀錄</p>
+                <p className="text-sm font-semibold text-gray-100">連接 Strava</p>
+                <p className="text-xs text-gray-400">自動匯入跑步、騎車等運動紀錄</p>
               </div>
             </div>
             <a
@@ -303,16 +299,16 @@ function StravaBanner() {
   }
 
   return (
-    <Card className="mb-4 border-[#FC4C02]/30 bg-orange-50">
+    <Card className="mb-4 border-[#FC4C02]/30 bg-orange-950/30">
       <CardContent className="pt-3 pb-3">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-lg flex-shrink-0">🟠</span>
             <div className="min-w-0">
-              <p className="text-xs font-semibold text-gray-800 truncate">
+              <p className="text-xs font-semibold text-gray-100 truncate">
                 Strava · {stravaTokens.athleteName || '已連接'}
               </p>
-              {syncMsg && <p className="text-[11px] text-emerald-600">{syncMsg}</p>}
+              {syncMsg && <p className="text-[11px] text-emerald-400">{syncMsg}</p>}
             </div>
           </div>
           <div className="flex gap-1.5 flex-shrink-0">
@@ -326,7 +322,7 @@ function StravaBanner() {
             </button>
             <button
               onClick={() => { setStravaTokens(null); setSyncMsg(''); }}
-              className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-50 rounded-xl"
+              className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-900/30 rounded-xl"
               title="中斷連接"
             >
               <LogOut size={14} />
@@ -338,6 +334,14 @@ function StravaBanner() {
   );
 }
 
+function dateLabel(dateStr: string): string {
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
+  if (dateStr === today) return '今天';
+  if (dateStr === yesterday) return '昨天';
+  return format(new Date(dateStr + 'T00:00:00'), 'M月d日 (EEE)', { locale: zhTW });
+}
+
 function ExercisePageInner() {
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [showForm, setShowForm] = useState(false);
@@ -345,7 +349,6 @@ function ExercisePageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  // Handle Strava OAuth callback params
   useEffect(() => {
     const accessToken = searchParams.get('strava_access_token');
     const refreshToken = searchParams.get('strava_refresh_token');
@@ -362,7 +365,6 @@ function ExercisePageInner() {
         athleteId: parseInt(athleteId ?? '0'),
       };
       setStravaTokens(tokens);
-      // Clean up URL
       router.replace('/exercise');
     }
 
@@ -389,13 +391,30 @@ function ExercisePageInner() {
   return (
     <div className="page-container px-4 pt-5">
       <div className="flex items-center justify-between mb-5">
-        <h1 className="text-xl font-bold text-gray-900">運動記錄</h1>
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          className="text-sm border border-gray-200 rounded-xl px-2 py-1.5 focus:outline-none focus:border-emerald-400"
-        />
+        <div>
+          <h1 className="text-xl font-bold text-white">運動記錄</h1>
+          <p className="text-sm text-gray-400 mt-0.5">{dateLabel(date)}</p>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setDate(format(subDays(new Date(date + 'T00:00:00'), 1), 'yyyy-MM-dd'))}
+            className="p-2 hover:bg-gray-700 rounded-xl"
+          >
+            <ChevronLeft size={18} className="text-gray-400" />
+          </button>
+          <button
+            onClick={() => setDate(format(new Date(), 'yyyy-MM-dd'))}
+            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${date === format(new Date(), 'yyyy-MM-dd') ? 'bg-orange-900/50 text-orange-400' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+          >
+            {dateLabel(date)}
+          </button>
+          <button
+            onClick={() => setDate(format(addDays(new Date(date + 'T00:00:00'), 1), 'yyyy-MM-dd'))}
+            className="p-2 hover:bg-gray-700 rounded-xl"
+          >
+            <ChevronRight size={18} className="text-gray-400" />
+          </button>
+        </div>
       </div>
 
       {/* Strava */}
@@ -406,19 +425,19 @@ function ExercisePageInner() {
         <CardContent className="pt-4 pb-4">
           <div className="grid grid-cols-3 gap-2 text-center">
             <div>
-              <p className="text-2xl font-bold text-orange-500">{totalCalories}</p>
+              <p className="text-2xl font-bold text-orange-400">{totalCalories}</p>
               <p className="text-xs text-gray-400">消耗熱量</p>
-              <p className="text-[10px] text-gray-300">kcal</p>
+              <p className="text-[10px] text-gray-500">kcal</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-blue-500">{totalDuration}</p>
+              <p className="text-2xl font-bold text-blue-400">{totalDuration}</p>
               <p className="text-xs text-gray-400">運動時間</p>
-              <p className="text-[10px] text-gray-300">分鐘</p>
+              <p className="text-[10px] text-gray-500">分鐘</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-emerald-500">{dayExercise.length}</p>
+              <p className="text-2xl font-bold text-emerald-400">{dayExercise.length}</p>
               <p className="text-xs text-gray-400">運動項目</p>
-              <p className="text-[10px] text-gray-300">個</p>
+              <p className="text-[10px] text-gray-500">個</p>
             </div>
           </div>
         </CardContent>
@@ -428,7 +447,7 @@ function ExercisePageInner() {
       {dayExercise.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center">
-            <Dumbbell size={32} className="text-gray-200 mx-auto mb-3" />
+            <Dumbbell size={32} className="text-gray-600 mx-auto mb-3" />
             <p className="text-gray-400 text-sm mb-3">今天尚未記錄運動</p>
             <Button size="sm" onClick={() => setShowForm(true)}>
               <Plus size={14} /> 新增運動
@@ -436,11 +455,11 @@ function ExercisePageInner() {
           </CardContent>
         </Card>
       ) : (
-        grouped.map(({ value, label, emoji, color, entries }) => (
+        grouped.map(({ value, label, emoji, entries }) => (
           <Card key={value} className="mb-3">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-gray-700">{emoji} {label}</span>
+                <span className="text-sm font-semibold text-gray-200">{emoji} {label}</span>
                 <span className="text-xs text-gray-400">
                   {entries.reduce((s, e) => s + e.caloriesBurned, 0)} kcal
                 </span>
@@ -454,17 +473,17 @@ function ExercisePageInner() {
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1 flex-wrap">
-                      <span className="text-sm font-medium text-gray-800">{entry.name}</span>
+                      <span className="text-sm font-medium text-gray-100">{entry.name}</span>
                       {entry.estimatedByAI && <Badge color="purple" className="text-[10px]">AI</Badge>}
                       {entry.notes?.includes('Strava ID:') && <Badge color="orange" className="text-[10px]">Strava</Badge>}
                     </div>
-                    <div className="flex gap-3 mt-0.5 text-xs text-gray-500">
+                    <div className="flex gap-3 mt-0.5 text-xs text-gray-400">
                       {entry.duration > 0 && <span className="flex items-center gap-0.5"><Timer size={11} /> {entry.duration}分</span>}
-                      {entry.caloriesBurned > 0 && <span className="text-orange-500 font-medium flex items-center gap-0.5"><Flame size={11} /> {entry.caloriesBurned} kcal</span>}
+                      {entry.caloriesBurned > 0 && <span className="text-orange-400 font-medium flex items-center gap-0.5"><Flame size={11} /> {entry.caloriesBurned} kcal</span>}
                     </div>
-                    {entry.notes && <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{entry.notes}</p>}
+                    {entry.notes && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{entry.notes}</p>}
                   </div>
-                  <button onClick={() => deleteExerciseEntry(entry.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-gray-300 hover:text-red-400 flex-shrink-0">
+                  <button onClick={() => deleteExerciseEntry(entry.id)} className="p-1.5 hover:bg-red-900/30 rounded-lg text-gray-600 hover:text-red-400 flex-shrink-0">
                     <Trash2 size={14} />
                   </button>
                 </div>

@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest, NextResponse } from 'next/server';
-import type { HealthReport, UserProfile, FoodEntry, ExerciseEntry, WeightEntry } from '@/types';
+import type { HealthReport, UserProfile, FoodEntry, ExerciseEntry, WeightEntry, SupplementEntry, SupplementTemplate } from '@/types';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -33,6 +33,20 @@ const REFERENCE_RANGES = `
 - 肌酸酐（男）：0.7-1.3 mg/dL；eGFR：>90 最佳，60-90 輕微下降
 - 血脂：總膽固醇<200；LDL<100；HDL(男)>40（最佳>60）；三酸甘油酯<150
 `;
+
+// Supplement → blood marker mapping for cross-reference
+const SUPPLEMENT_BLOOD_MAP: Record<string, { marker: string; field: keyof HealthReport }[]> = {
+  '維生素D': [{ marker: '維生素D (25-OH)', field: 'vitaminD' }],
+  '維生素D3': [{ marker: '維生素D (25-OH)', field: 'vitaminD' }],
+  '鋅': [{ marker: '鋅', field: 'zinc' }],
+  '螯合鋅': [{ marker: '鋅', field: 'zinc' }],
+  '鋅（螯合鋅）': [{ marker: '鋅', field: 'zinc' }],
+  '鎂': [{ marker: 'RBC鎂', field: 'rbcMagnesium' }],
+  '鐵': [{ marker: '鐵蛋白', field: 'ferritin' }, { marker: '血紅素', field: 'hemoglobin' }],
+  '維生素B12': [{ marker: '維生素B12', field: 'vitaminB12' }],
+  '維生素B群': [{ marker: '維生素B12', field: 'vitaminB12' }],
+  '葉酸': [{ marker: '血紅素', field: 'hemoglobin' }],
+};
 
 function formatHealthReport(r: HealthReport): string {
   const fields: string[] = [`日期：${r.date}`];
@@ -116,20 +130,107 @@ function computeWeightTrend(entries: WeightEntry[]) {
   };
 }
 
+function computeSupplementStats(
+  entries: SupplementEntry[],
+  templates: SupplementTemplate[],
+  days: number,
+) {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  const recent = entries.filter((e) => e.date >= cutoffStr);
+
+  if (!recent.length && !templates.length) return null;
+
+  // Count days each supplement was taken
+  const countByName: Record<string, number> = {};
+  recent.forEach((e) => { countByName[e.name] = (countByName[e.name] || 0) + 1; });
+
+  const daysWithAny = new Set(recent.map((e) => e.date)).size;
+  const overallAdherence = Math.round((daysWithAny / days) * 100);
+
+  // Build per-supplement rows
+  const allNames = new Set([
+    ...Object.keys(countByName),
+    ...templates.map((t) => t.name),
+  ]);
+
+  const rows = [...allNames].map((name) => {
+    const tpl = templates.find((t) => t.name === name);
+    const taken = countByName[name] || 0;
+    const adherence = Math.round((taken / days) * 100);
+    return {
+      name,
+      dose: tpl ? `${tpl.dose}${tpl.unit}` : null,
+      daysTaken: taken,
+      adherencePct: adherence,
+      isTemplate: !!tpl,
+    };
+  });
+
+  return { daysWithAny, overallAdherence, rows };
+}
+
+function buildSupplementCrossRef(
+  supplementRows: ReturnType<typeof computeSupplementStats>,
+  healthReport: HealthReport,
+): string {
+  if (!supplementRows) return '';
+
+  const lines: string[] = [];
+
+  // Check which supplements have a corresponding blood marker
+  for (const row of supplementRows.rows) {
+    const mappings = SUPPLEMENT_BLOOD_MAP[row.name];
+    if (!mappings) continue;
+
+    for (const { marker, field } of mappings) {
+      const bloodValue = healthReport[field] as number | undefined;
+      if (bloodValue == null) continue;
+      lines.push(
+        `  • ${row.name}（${row.dose ?? '未知劑量'}, 打卡率${row.adherencePct}%） → 血液中 ${marker} = ${bloodValue}`,
+      );
+    }
+  }
+
+  return lines.length > 0
+    ? `\n補充品與血液指標交叉對照：\n${lines.join('\n')}`
+    : '';
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const { profile, healthReport, foodEntries, exerciseEntries, weightEntries, analysisPeriodDays = 30 } = await req.json() as {
+    const {
+      profile,
+      healthReport,
+      foodEntries,
+      exerciseEntries,
+      weightEntries,
+      supplementEntries = [],
+      supplementTemplates = [],
+      analysisPeriodDays = 30,
+    } = await req.json() as {
       profile: UserProfile;
       healthReport: HealthReport;
       foodEntries: FoodEntry[];
       exerciseEntries: ExerciseEntry[];
       weightEntries: WeightEntry[];
+      supplementEntries?: SupplementEntry[];
+      supplementTemplates?: SupplementTemplate[];
       analysisPeriodDays?: number;
     };
 
     const foodStats = computeFoodStats(foodEntries, analysisPeriodDays);
     const exerciseStats = computeExerciseStats(exerciseEntries, analysisPeriodDays);
     const weightTrend = computeWeightTrend(weightEntries);
+    const suppStats = computeSupplementStats(supplementEntries, supplementTemplates, analysisPeriodDays);
+    const suppCrossRef = suppStats ? buildSupplementCrossRef(suppStats, healthReport) : '';
+
+    const suppSection = suppStats ? `
+近${analysisPeriodDays}天整體打卡率：${suppStats.overallAdherence}%（${suppStats.daysWithAny}天有服用）
+各補充品詳細：
+${suppStats.rows.map((r) => `  - ${r.name}${r.dose ? ` ${r.dose}` : ''}：${r.daysTaken}天 / ${analysisPeriodDays}天（${r.adherencePct}%）`).join('\n')}
+${suppCrossRef}` : '無補充品紀錄';
 
     const prompt = `你是一位專業的運動營養師暨功能醫學顧問，請根據以下完整資料，針對此人為何無法達到體重與體脂肪目標進行深入診斷分析。
 
@@ -173,6 +274,9 @@ ${weightTrend ? `
 ${weightTrend.latestBodyFat ? `最新體脂率：${weightTrend.latestBodyFat}%` : ''}
 ${weightTrend.latestMuscleMass ? `最新肌肉量：${weightTrend.latestMuscleMass}kg` : ''}` : '無體重紀錄'}
 
+【近${analysisPeriodDays}天補充品紀錄】
+${suppSection}
+
 請提供以下格式的診斷報告（使用繁體中文）：
 
 ## 🔍 整體評估
@@ -184,8 +288,15 @@ ${weightTrend.latestMuscleMass ? `最新肌肉量：${weightTrend.latestMuscleMa
 問題說明：（具體說明數值偏差和對目標的影響）
 根本原因：（分析可能的成因）
 
-## 💊 具體行動建議
-（至少5條具體可執行的建議，包含營養補充、生活習慣、訓練調整等）
+## 💊 補充品建議
+（根據血液檢測數據和目前補充品打卡率，給出具體建議：
+- 哪些補充品劑量需要調整（參考血液數值）
+- 打卡率不足的補充品需要加強
+- 建議新增哪些目前沒有補充的項目
+- 若某指標已補充但血液數值仍低，分析可能原因如吸收問題、劑量不足等）
+
+## 🏋️ 具體行動建議
+（至少5條具體可執行的建議，包含生活習慣、訓練調整等）
 
 ## 📊 優先處理順序
 （列出3-5個最優先需要改善的項目，說明理由）
@@ -193,11 +304,11 @@ ${weightTrend.latestMuscleMass ? `最新肌肉量：${weightTrend.latestMuscleMa
 ## ⚡ 快速改善方案
 （1-2個可以在本週內立即執行的行動）
 
-請根據實際數據給出精確的分析，不要泛泛而談，直接指出數字問題。`;
+請根據實際數據給出精確的分析，不要泛泛而談，直接指出數字問題。若補充品打卡率偏低（<70%），請特別說明。`;
 
     const response = await client.messages.create({
       model: 'claude-opus-4-5',
-      max_tokens: 2000,
+      max_tokens: 2500,
       messages: [{ role: 'user', content: prompt }],
     });
 

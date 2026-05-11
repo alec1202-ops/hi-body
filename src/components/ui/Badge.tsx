@@ -7,12 +7,12 @@ interface BadgeProps {
 }
 
 const colors = {
-  green: 'bg-emerald-100 text-emerald-700',
-  blue: 'bg-blue-100 text-blue-700',
-  purple: 'bg-purple-100 text-purple-700',
-  orange: 'bg-orange-100 text-orange-700',
-  red: 'bg-red-100 text-red-700',
-  gray: 'bg-gray-100 text-gray-600',
+  green: 'bg-emerald-900/50 text-emerald-300',
+  blue: 'bg-blue-900/50 text-blue-300',
+  purple: 'bg-purple-900/50 text-purple-300',
+  orange: 'bg-orange-900/50 text-orange-300',
+  red: 'bg-red-900/50 text-red-300',
+  gray: 'bg-gray-700 text-gray-300',
 };
 
 export function Badge({ children, color = 'gray', className = '' }: BadgeProps) {

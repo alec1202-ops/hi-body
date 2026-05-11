@@ -1,16 +1,17 @@
 'use client';
 
 import React, { useState } from 'react';
-import { format, subDays, eachDayOfInterval, parseISO, subMonths, subQuarters, subYears, eachWeekOfInterval, eachMonthOfInterval } from 'date-fns';
+import { format, subDays, eachDayOfInterval, parseISO } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
 import {
-  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine, Area, AreaChart, Legend,
 } from 'recharts';
-import { Scale, Plus, Trash2, Target, Droplets, Bone, Activity, ChevronDown, ChevronUp } from 'lucide-react';
-import { useAppStore, estimateWeightChange } from '@/lib/store';
+import { Scale, Plus, Trash2, Target, ChevronDown, ChevronUp, Upload, X, Check, Loader2 } from 'lucide-react';
+import { useAppStore, estimateWeightChange, linearRegressionMonthlyChange, getProteinCalorieFactor } from '@/lib/store';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { PhotoUpload } from '@/components/ui/PhotoUpload';
 import type { WeightEntry } from '@/types';
 
 // ─── Period config ────────────────────────────────────────────────────────────
@@ -57,16 +58,16 @@ function WeightForm({ onAdd, onClose, heightCm }: {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-end justify-center" onClick={onClose}>
-      <div className="bg-white w-full max-w-[480px] rounded-t-3xl max-h-[90dvh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center" onClick={onClose}>
+      <div className="bg-gray-800 w-full max-w-[480px] rounded-t-3xl max-h-[90dvh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="overflow-y-auto flex-1 min-h-0 p-5 pb-0" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-          <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
+          <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-4" />
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-gray-900">記錄體組成</h2>
+            <h2 className="text-lg font-bold text-white">記錄體組成</h2>
             <button
               onClick={handleSubmit}
               disabled={!weight}
-              className="px-4 py-1.5 bg-emerald-500 disabled:bg-gray-200 text-white text-sm font-semibold rounded-xl"
+              className="px-4 py-1.5 bg-emerald-500 disabled:bg-gray-600 text-white text-sm font-semibold rounded-xl"
             >
               ✅ 儲存
             </button>
@@ -74,69 +75,66 @@ function WeightForm({ onAdd, onClose, heightCm }: {
 
           <div className="space-y-3 mb-4">
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">日期</label>
+              <label className="text-xs text-gray-400 mb-1 block">日期</label>
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-400" />
+                className="w-full px-3 py-2 border border-gray-600 rounded-xl text-sm focus:outline-none focus:border-emerald-400" />
             </div>
 
-            {/* Row 1: Weight + BMI */}
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-xs text-gray-500 mb-1 block">體重 (kg) *</label>
+                <label className="text-xs text-gray-400 mb-1 block">體重 (kg) *</label>
                 <input type="number" min={30} max={300} step={0.05} value={weight}
                   onChange={(e) => setWeight(e.target.value)} placeholder="例如 72.5"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-400" />
+                  className="w-full px-3 py-2 border border-gray-600 rounded-xl text-sm focus:outline-none focus:border-emerald-400" />
               </div>
               <div>
-                <label className="text-xs text-gray-500 mb-1 block">
-                  BMI {bmi ? <span className="text-emerald-600">（自動：{bmi}）</span> : '（自動計算）'}
+                <label className="text-xs text-gray-400 mb-1 block">
+                  BMI {bmi ? <span className="text-emerald-400">（自動：{bmi}）</span> : '（自動計算）'}
                 </label>
                 <input type="number" min={10} max={50} step={0.1}
                   value={bmi ?? ''}
                   placeholder={bmi ? bmi : '需設定身高'}
                   disabled
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 text-gray-400" />
+                  className="w-full px-3 py-2 border border-gray-600 rounded-xl text-sm bg-gray-700 text-gray-500" />
               </div>
             </div>
 
-            {/* Row 2: Body Fat + Muscle Mass */}
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-xs text-gray-500 mb-1 block">體脂率 (%)</label>
+                <label className="text-xs text-gray-400 mb-1 block">體脂率 (%)</label>
                 <input type="number" min={3} max={60} step={0.1} value={bodyFat}
                   onChange={(e) => setBodyFat(e.target.value)} placeholder="例如 18.5"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-400" />
+                  className="w-full px-3 py-2 border border-gray-600 rounded-xl text-sm focus:outline-none focus:border-emerald-400" />
               </div>
               <div>
-                <label className="text-xs text-gray-500 mb-1 block">骨骼肌肉量 (kg)</label>
+                <label className="text-xs text-gray-400 mb-1 block">骨骼肌肉量 (kg)</label>
                 <input type="number" min={10} max={100} step={0.1} value={muscleMass}
                   onChange={(e) => setMuscleMass(e.target.value)} placeholder="例如 32.0"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-400" />
+                  className="w-full px-3 py-2 border border-gray-600 rounded-xl text-sm focus:outline-none focus:border-emerald-400" />
               </div>
             </div>
 
-            {/* Row 3: Bone Mass + Body Water */}
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-xs text-gray-500 mb-1 block">骨質量 (kg)</label>
+                <label className="text-xs text-gray-400 mb-1 block">骨質量 (kg)</label>
                 <input type="number" min={0.5} max={10} step={0.05} value={boneMass}
                   onChange={(e) => setBoneMass(e.target.value)} placeholder="例如 2.8"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-400" />
+                  className="w-full px-3 py-2 border border-gray-600 rounded-xl text-sm focus:outline-none focus:border-emerald-400" />
               </div>
               <div>
-                <label className="text-xs text-gray-500 mb-1 block">身體水份 (%)</label>
+                <label className="text-xs text-gray-400 mb-1 block">身體水份 (%)</label>
                 <input type="number" min={20} max={80} step={0.1} value={bodyWater}
                   onChange={(e) => setBodyWater(e.target.value)} placeholder="例如 55.0"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-400" />
+                  className="w-full px-3 py-2 border border-gray-600 rounded-xl text-sm focus:outline-none focus:border-emerald-400" />
               </div>
             </div>
 
             <input type="text" placeholder="備註（選填）" value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-400" />
+              className="w-full px-3 py-2 border border-gray-600 rounded-xl text-sm focus:outline-none focus:border-emerald-400" />
           </div>
         </div>
-        <div className="p-4 pt-3 border-t border-gray-100 bg-white flex gap-2">
+        <div className="p-4 pt-3 border-t border-gray-700 bg-gray-800 flex gap-2">
           <Button variant="secondary" onClick={onClose} className="flex-1">取消</Button>
           <Button onClick={handleSubmit} disabled={!weight} className="flex-1">儲存體組成</Button>
         </div>
@@ -160,7 +158,7 @@ function TrendChart({
   const hasData = data.some((d) => d[dataKey] != null);
   if (!hasData) return (
     <div className="h-36 flex items-center justify-center">
-      <p className="text-xs text-gray-400">尚無{label}資料</p>
+      <p className="text-xs text-gray-500">尚無{label}資料</p>
     </div>
   );
   return (
@@ -168,20 +166,20 @@ function TrendChart({
       <AreaChart data={data} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
         <defs>
           <linearGradient id={`grad-${dataKey}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={color} stopOpacity={0.25} />
+            <stop offset="5%" stopColor={color} stopOpacity={0.3} />
             <stop offset="95%" stopColor={color} stopOpacity={0} />
           </linearGradient>
         </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-        <XAxis dataKey="date" tick={{ fontSize: 9 }} interval="preserveStartEnd" />
-        <YAxis tick={{ fontSize: 9 }} domain={['auto', 'auto']} />
+        <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+        <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#9ca3af' }} interval="preserveStartEnd" />
+        <YAxis tick={{ fontSize: 9, fill: '#9ca3af' }} domain={['auto', 'auto']} />
         <Tooltip
-          contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #e5e7eb' }}
+          contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #4b5563', background: '#1f2937', color: '#f9fafb' }}
           formatter={(v) => [`${v} ${unit}`, label]}
         />
         {targetValue && (
           <ReferenceLine y={targetValue} stroke="#6366f1" strokeDasharray="4 4"
-            label={{ value: targetLabel ?? '目標', fontSize: 9, fill: '#6366f1' }} />
+            label={{ value: targetLabel ?? '目標', fontSize: 9, fill: '#818cf8' }} />
         )}
         <Area type="monotone" dataKey={dataKey} stroke={color} strokeWidth={2}
           fill={`url(#grad-${dataKey})`} dot={{ r: 2.5, fill: color }} connectNulls />
@@ -190,10 +188,128 @@ function TrendChart({
   );
 }
 
+// ─── Garmin Import Modal ──────────────────────────────────────────────────────
+function GarminImportModal({
+  onImport,
+  onClose,
+}: {
+  onImport: (entries: Omit<WeightEntry, 'id'>[]) => void;
+  onClose: () => void;
+}) {
+  const [preview, setPreview] = useState<string | undefined>();
+  const [loading, setLoading] = useState(false);
+  const [extracted, setExtracted] = useState<{ date: string; weight: number }[]>([]);
+  const [error, setError] = useState('');
+
+  async function handlePhoto(base64: string, mimeType: string, previewUrl: string) {
+    setPreview(previewUrl);
+    setLoading(true);
+    setError('');
+    setExtracted([]);
+    try {
+      const res = await fetch('/api/extract-weight', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64, mimeType }),
+      });
+      const data = await res.json();
+      if (data.entries && data.entries.length > 0) {
+        setExtracted(data.entries);
+      } else {
+        setError('無法從圖片中辨識體重資料，請確認截圖包含日期和體重數值。');
+      }
+    } catch {
+      setError('分析失敗，請重試。');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function removeEntry(i: number) {
+    setExtracted((prev) => prev.filter((_, idx) => idx !== i));
+  }
+
+  function handleConfirm() {
+    onImport(extracted.map((e) => ({ date: e.date, weight: e.weight })));
+    onClose();
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center" onClick={onClose}>
+      <div className="bg-gray-800 w-full max-w-[480px] rounded-t-3xl max-h-[90dvh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}>
+        <div className="overflow-y-auto flex-1 min-h-0 p-5 pb-0" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+          <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-4" />
+          <h2 className="text-lg font-bold text-white mb-1">匯入 Garmin 體重</h2>
+          <p className="text-xs text-gray-400 mb-4">截圖 Garmin Connect 的體重圖表，AI 將自動提取資料</p>
+
+          {!preview ? (
+            <PhotoUpload
+              onPhoto={handlePhoto}
+              label="上傳 Garmin 截圖"
+            />
+          ) : (
+            <div className="relative mb-4">
+              <img src={preview} alt="Garmin截圖" className="w-full rounded-xl object-cover max-h-48" />
+              <button
+                onClick={() => { setPreview(undefined); setExtracted([]); setError(''); }}
+                className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
+
+          {loading && (
+            <div className="flex items-center justify-center gap-2 py-4 text-emerald-400">
+              <Loader2 size={18} className="animate-spin" />
+              <span className="text-sm">AI 分析中…</span>
+            </div>
+          )}
+
+          {error && <p className="text-sm text-red-400 py-2 text-center">{error}</p>}
+
+          {extracted.length > 0 && (
+            <div className="mb-4">
+              <p className="text-xs text-gray-400 mb-2">辨識到 {extracted.length} 筆資料（可刪除不需要的）：</p>
+              <div className="space-y-1.5 max-h-52 overflow-y-auto">
+                {extracted.map((e, i) => (
+                  <div key={i} className="flex items-center justify-between bg-gray-700/60 rounded-xl px-3 py-2">
+                    <div className="flex items-center gap-3">
+                      <Check size={14} className="text-emerald-400 flex-shrink-0" />
+                      <span className="text-sm text-gray-200">{e.date}</span>
+                      <span className="text-sm font-bold text-emerald-400">{e.weight} kg</span>
+                    </div>
+                    <button onClick={() => removeEntry(i)} className="text-gray-500 hover:text-red-400 p-1">
+                      <X size={13} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="p-4 pt-3 border-t border-gray-700 bg-gray-800 flex gap-2">
+          <Button variant="secondary" onClick={onClose} className="flex-1">取消</Button>
+          <Button
+            onClick={handleConfirm}
+            disabled={extracted.length === 0}
+            className="flex-1"
+          >
+            確認匯入 {extracted.length > 0 ? `(${extracted.length} 筆)` : ''}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function ProgressPage() {
-  const { weightEntries, addWeightEntry, deleteWeightEntry, getDailySummary, profile } = useAppStore();
+  const { weightEntries, addWeightEntry, deleteWeightEntry, getDailySummary, profile, foodEntries, exerciseEntries } = useAppStore();
   const [showForm, setShowForm] = useState(false);
+  const [showGarminImport, setShowGarminImport] = useState(false);
   const [period, setPeriod] = useState<Period>('30');
   const [expandLog, setExpandLog] = useState(false);
 
@@ -207,7 +323,6 @@ export default function ProgressPage() {
   const totalChange = latest && earliest && latest.id !== earliest.id
     ? latest.weight - earliest.weight : null;
 
-  // Chart data
   const chartData = sortedPeriod.map((e) => ({
     date: format(parseISO(e.date), days <= 30 ? 'M/d' : 'M月'),
     weight: e.weight,
@@ -218,7 +333,6 @@ export default function ProgressPage() {
     bodyWater: e.bodyWater,
   }));
 
-  // Calorie chart — last 7 days
   const last7Days = eachDayOfInterval({ start: subDays(new Date(), 6), end: new Date() });
   const calorieData = last7Days.map((d) => {
     const s = getDailySummary(format(d, 'yyyy-MM-dd'));
@@ -229,41 +343,59 @@ export default function ProgressPage() {
     };
   });
 
-  // Monthly prediction
   const avgNet = last7Days.reduce((s, d) => s + getDailySummary(format(d, 'yyyy-MM-dd')).netCalories, 0) / 7;
-  const monthlyPrediction = estimateWeightChange(avgNet, 30);
+
+  // Prediction model: prefer linear regression, fall back to calorie model
+  const regressionResult = linearRegressionMonthlyChange(sortedAll);
+  const { factor: calorieFactor, highProtein, strengthDays, avgProteinG } = getProteinCalorieFactor(foodEntries, exerciseEntries, profile);
+  const monthlyPrediction = regressionResult
+    ? regressionResult.monthlyChange
+    : estimateWeightChange(avgNet, 30) * (7700 / calorieFactor); // re-derive with factor
+  // Calorie model with factor:
+  const calorieMonthlyPrediction = (avgNet * 30) / calorieFactor;
 
   function handleAdd(entry: Omit<WeightEntry, 'id'>) {
     addWeightEntry({ ...entry, id: crypto.randomUUID() });
   }
 
-  // Latest stats
+  function handleGarminImport(entries: Omit<WeightEntry, 'id'>[]) {
+    entries.forEach((e) => addWeightEntry({ ...e, id: crypto.randomUUID() }));
+  }
+
   const stats = [
-    { label: '體重', value: latest?.weight, unit: 'kg', color: 'text-emerald-600' },
-    { label: 'BMI', value: latest?.bmi, unit: '', color: 'text-blue-600' },
-    { label: '體脂率', value: latest?.bodyFat, unit: '%', color: 'text-orange-500' },
-    { label: '骨骼肌肉', value: latest?.muscleMass, unit: 'kg', color: 'text-purple-600' },
-    { label: '骨質量', value: latest?.boneMass, unit: 'kg', color: 'text-amber-600' },
-    { label: '身體水份', value: latest?.bodyWater, unit: '%', color: 'text-sky-500' },
+    { label: '體重', value: latest?.weight, unit: 'kg', color: 'text-emerald-400' },
+    { label: 'BMI', value: latest?.bmi, unit: '', color: 'text-blue-400' },
+    { label: '體脂率', value: latest?.bodyFat, unit: '%', color: 'text-orange-400' },
+    { label: '骨骼肌肉', value: latest?.muscleMass, unit: 'kg', color: 'text-purple-400' },
+    { label: '骨質量', value: latest?.boneMass, unit: 'kg', color: 'text-amber-400' },
+    { label: '身體水份', value: latest?.bodyWater, unit: '%', color: 'text-sky-400' },
   ];
 
   return (
     <div className="page-container px-4 pt-5 pb-24">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
-        <h1 className="text-xl font-bold text-gray-900">進度追蹤</h1>
-        <Button size="sm" onClick={() => setShowForm(true)}>
-          <Plus size={16} /> 記錄體組成
-        </Button>
+        <h1 className="text-xl font-bold text-white">進度追蹤</h1>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowGarminImport(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-900/50 hover:bg-indigo-800/60 border border-indigo-700/50 text-indigo-300 text-xs font-medium rounded-xl transition-colors"
+          >
+            <Upload size={13} /> 匯入 Garmin
+          </button>
+          <Button size="sm" onClick={() => setShowForm(true)}>
+            <Plus size={16} /> 記錄體組成
+          </Button>
+        </div>
       </div>
 
       {/* Period selector */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-4">
+      <div className="flex gap-1 bg-gray-800 rounded-xl p-1 mb-4">
         {PERIODS.map((p) => (
           <button
             key={p.value}
             onClick={() => setPeriod(p.value)}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors ${period === p.value ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}
+            className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors ${period === p.value ? 'bg-gray-600 shadow-sm text-white' : 'text-gray-400'}`}
           >
             {p.label}
           </button>
@@ -274,25 +406,25 @@ export default function ProgressPage() {
       <Card className="mb-4">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-700">最新數據</h2>
-            {latest && <p className="text-xs text-gray-400">{format(parseISO(latest.date), 'M月d日')}</p>}
+            <h2 className="text-sm font-semibold text-gray-200">最新數據</h2>
+            {latest && <p className="text-xs text-gray-500">{format(parseISO(latest.date), 'M月d日')}</p>}
           </div>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="grid grid-cols-3 gap-2">
             {stats.map((s) => (
-              <div key={s.label} className="text-center py-2 bg-gray-50 rounded-xl">
-                <p className={`text-base font-bold ${s.value != null ? s.color : 'text-gray-300'}`}>
+              <div key={s.label} className="text-center py-2 bg-gray-700/50 rounded-xl">
+                <p className={`text-base font-bold ${s.value != null ? s.color : 'text-gray-600'}`}>
                   {s.value != null ? `${s.value}${s.unit}` : '—'}
                 </p>
-                <p className="text-[10px] text-gray-500 mt-0.5">{s.label}</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">{s.label}</p>
               </div>
             ))}
           </div>
           {totalChange !== null && (
             <div className="mt-3 flex items-center justify-between px-2">
-              <span className="text-xs text-gray-500">全期體重變化</span>
-              <span className={`text-sm font-bold ${totalChange < 0 ? 'text-emerald-500' : totalChange > 0 ? 'text-orange-500' : 'text-gray-500'}`}>
+              <span className="text-xs text-gray-400">全期體重變化</span>
+              <span className={`text-sm font-bold ${totalChange < 0 ? 'text-emerald-400' : totalChange > 0 ? 'text-orange-400' : 'text-gray-400'}`}>
                 {totalChange > 0 ? '+' : ''}{totalChange.toFixed(1)} kg
               </span>
             </div>
@@ -301,22 +433,48 @@ export default function ProgressPage() {
       </Card>
 
       {/* Monthly prediction */}
-      <Card className="mb-4 border-purple-200 bg-gradient-to-br from-purple-50 to-indigo-50">
+      <Card className="mb-4 border-purple-800 bg-gradient-to-br from-purple-950/40 to-indigo-950/40">
         <CardContent className="pt-4 pb-4">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex items-start justify-between">
+            <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <Target size={16} className="text-purple-600" />
-                <span className="text-sm font-semibold text-purple-800">下個月預測</span>
+                <Target size={16} className="text-purple-400" />
+                <span className="text-sm font-semibold text-purple-300">下個月預測</span>
+                {regressionResult ? (
+                  <span className="text-[10px] bg-emerald-900/50 text-emerald-400 px-1.5 py-0.5 rounded-full">實測趨勢</span>
+                ) : (
+                  <span className="text-[10px] bg-purple-900/50 text-purple-400 px-1.5 py-0.5 rounded-full">熱量模型</span>
+                )}
               </div>
-              <p className="text-xs text-gray-500">近 7 天平均淨卡 {Math.round(avgNet)} kcal/天</p>
+              {regressionResult ? (
+                <div className="text-xs text-gray-400 space-y-0.5">
+                  <p>{regressionResult.dataPoints} 筆體重紀錄 · {regressionResult.spanDays} 天跨度</p>
+                  <p>R² = {(regressionResult.r2 * 100).toFixed(0)}%
+                    {regressionResult.r2 >= 0.8 ? ' 📈 高準確度' : regressionResult.r2 >= 0.5 ? ' 中等準確度' : ' 數據較分散'}
+                  </p>
+                </div>
+              ) : (
+                <div className="text-xs text-gray-400 space-y-0.5">
+                  <p>近 7 天平均淨卡 {Math.round(avgNet)} kcal/天</p>
+                  {calorieFactor !== 7700 ? (
+                    <p className="text-purple-400">✦ 高蛋白+重訓模式 ({calorieFactor} kcal/kg)</p>
+                  ) : (
+                    highProtein && strengthDays < 2 ? (
+                      <p>蛋白 {Math.round(avgProteinG)}g/天 ·重訓 {strengthDays} 天</p>
+                    ) : null
+                  )}
+                </div>
+              )}
             </div>
-            <div className="text-right">
-              <p className={`text-2xl font-bold ${monthlyPrediction < 0 ? 'text-emerald-600' : monthlyPrediction > 0 ? 'text-orange-500' : 'text-gray-600'}`}>
+            <div className="text-right flex-shrink-0 ml-3">
+              <p className={`text-2xl font-bold ${monthlyPrediction < 0 ? 'text-emerald-400' : monthlyPrediction > 0 ? 'text-orange-400' : 'text-gray-400'}`}>
                 {monthlyPrediction > 0 ? '+' : ''}{monthlyPrediction.toFixed(2)} kg
               </p>
               {latest && (
-                <p className="text-xs text-gray-400">→ {(latest.weight + monthlyPrediction).toFixed(1)} kg</p>
+                <p className="text-xs text-gray-500">→ {(latest.weight + monthlyPrediction).toFixed(1)} kg</p>
+              )}
+              {regressionResult && avgNet !== 0 && (
+                <p className="text-[10px] text-gray-600 mt-0.5">熱量模型: {calorieMonthlyPrediction > 0 ? '+' : ''}{calorieMonthlyPrediction.toFixed(2)} kg</p>
               )}
             </div>
           </div>
@@ -327,8 +485,8 @@ export default function ProgressPage() {
       <Card className="mb-4">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-700">⚖️ 體重趨勢</h2>
-            <span className="text-xs text-gray-400">{PERIODS.find(p => p.value === period)?.label}</span>
+            <h2 className="text-sm font-semibold text-gray-200">⚖️ 體重趨勢</h2>
+            <span className="text-xs text-gray-500">{PERIODS.find(p => p.value === period)?.label}</span>
           </div>
         </CardHeader>
         <CardContent className="pt-0">
@@ -337,50 +495,45 @@ export default function ProgressPage() {
         </CardContent>
       </Card>
 
-      {/* Body Fat Chart */}
       <Card className="mb-4">
         <CardHeader>
-          <h2 className="text-sm font-semibold text-gray-700">🔥 體脂率趨勢</h2>
+          <h2 className="text-sm font-semibold text-gray-200">🔥 體脂率趨勢</h2>
         </CardHeader>
         <CardContent className="pt-0">
           <TrendChart data={chartData} dataKey="bodyFat" label="體脂率" unit="%" color="#f97316" />
         </CardContent>
       </Card>
 
-      {/* Muscle Mass Chart */}
       <Card className="mb-4">
         <CardHeader>
-          <h2 className="text-sm font-semibold text-gray-700">💪 骨骼肌肉量趨勢</h2>
+          <h2 className="text-sm font-semibold text-gray-200">💪 骨骼肌肉量趨勢</h2>
         </CardHeader>
         <CardContent className="pt-0">
           <TrendChart data={chartData} dataKey="muscleMass" label="骨骼肌肉量" unit="kg" color="#8b5cf6" />
         </CardContent>
       </Card>
 
-      {/* Body Water Chart */}
       <Card className="mb-4">
         <CardHeader>
-          <h2 className="text-sm font-semibold text-gray-700">💧 身體水份趨勢</h2>
+          <h2 className="text-sm font-semibold text-gray-200">💧 身體水份趨勢</h2>
         </CardHeader>
         <CardContent className="pt-0">
           <TrendChart data={chartData} dataKey="bodyWater" label="身體水份" unit="%" color="#0ea5e9" />
         </CardContent>
       </Card>
 
-      {/* Bone Mass Chart */}
       <Card className="mb-4">
         <CardHeader>
-          <h2 className="text-sm font-semibold text-gray-700">🦴 骨質量趨勢</h2>
+          <h2 className="text-sm font-semibold text-gray-200">🦴 骨質量趨勢</h2>
         </CardHeader>
         <CardContent className="pt-0">
           <TrendChart data={chartData} dataKey="boneMass" label="骨質量" unit="kg" color="#d97706" />
         </CardContent>
       </Card>
 
-      {/* BMI Chart */}
       <Card className="mb-4">
         <CardHeader>
-          <h2 className="text-sm font-semibold text-gray-700">📊 BMI 趨勢</h2>
+          <h2 className="text-sm font-semibold text-gray-200">📊 BMI 趨勢</h2>
         </CardHeader>
         <CardContent className="pt-0">
           <TrendChart data={chartData} dataKey="bmi" label="BMI" unit="" color="#6366f1"
@@ -391,16 +544,16 @@ export default function ProgressPage() {
       {/* 7-day calorie chart */}
       <Card className="mb-4">
         <CardHeader>
-          <h2 className="text-sm font-semibold text-gray-700">🍽️ 近 7 天熱量</h2>
+          <h2 className="text-sm font-semibold text-gray-200">🍽️ 近 7 天熱量</h2>
         </CardHeader>
         <CardContent className="pt-0">
           <ResponsiveContainer width="100%" height={160}>
             <BarChart data={calorieData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 10 }} />
-              <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb' }} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+              <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#9ca3af' }} />
+              <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} />
+              <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #4b5563', background: '#1f2937', color: '#f9fafb' }} />
+              <Legend wrapperStyle={{ fontSize: 11, color: '#9ca3af' }} />
               <Bar dataKey="攝入" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={30} />
               <Bar dataKey="消耗" fill="#f97316" radius={[4, 4, 0, 0]} maxBarSize={30} />
             </BarChart>
@@ -415,8 +568,8 @@ export default function ProgressPage() {
             className="flex items-center justify-between w-full"
             onClick={() => setExpandLog(!expandLog)}
           >
-            <h2 className="text-sm font-semibold text-gray-700">📋 體組成紀錄</h2>
-            <div className="flex items-center gap-1 text-xs text-gray-400">
+            <h2 className="text-sm font-semibold text-gray-200">📋 體組成紀錄</h2>
+            <div className="flex items-center gap-1 text-xs text-gray-500">
               {sortedAll.length} 筆
               {expandLog ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             </div>
@@ -425,38 +578,38 @@ export default function ProgressPage() {
         {expandLog && (
           <CardContent className="pt-0">
             {sortedAll.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-4">尚無記錄</p>
+              <p className="text-sm text-gray-500 text-center py-4">尚無記錄</p>
             ) : (
               <div className="space-y-2">
                 {[...sortedAll].reverse().map((entry, i, arr) => {
                   const prev = arr[i + 1];
                   const diff = prev ? entry.weight - prev.weight : null;
                   return (
-                    <div key={entry.id} className="py-2.5 border-b border-gray-50 last:border-0">
+                    <div key={entry.id} className="py-2.5 border-b border-gray-700 last:border-0">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-bold text-gray-800">{entry.weight} kg</span>
-                            {entry.bmi && <span className="text-xs text-blue-500">BMI {entry.bmi}</span>}
+                            <span className="text-sm font-bold text-gray-100">{entry.weight} kg</span>
+                            {entry.bmi && <span className="text-xs text-blue-400">BMI {entry.bmi}</span>}
                             {diff !== null && (
-                              <span className={`text-xs font-medium ${diff < 0 ? 'text-emerald-500' : diff > 0 ? 'text-orange-500' : 'text-gray-400'}`}>
+                              <span className={`text-xs font-medium ${diff < 0 ? 'text-emerald-400' : diff > 0 ? 'text-orange-400' : 'text-gray-500'}`}>
                                 {diff > 0 ? '▲' : diff < 0 ? '▼' : ''}{Math.abs(diff).toFixed(1)}
                               </span>
                             )}
                           </div>
-                          <div className="flex gap-3 flex-wrap mt-0.5 text-xs text-gray-500">
+                          <div className="flex gap-3 flex-wrap mt-0.5 text-xs text-gray-400">
                             {entry.bodyFat != null && <span>體脂 {entry.bodyFat}%</span>}
                             {entry.muscleMass != null && <span>肌肉 {entry.muscleMass}kg</span>}
                             {entry.boneMass != null && <span>骨質 {entry.boneMass}kg</span>}
                             {entry.bodyWater != null && <span>水份 {entry.bodyWater}%</span>}
                           </div>
-                          <p className="text-xs text-gray-400 mt-0.5">
+                          <p className="text-xs text-gray-500 mt-0.5">
                             {format(parseISO(entry.date), 'yyyy年M月d日 (EEE)', { locale: zhTW })}
                             {entry.notes && ` · ${entry.notes}`}
                           </p>
                         </div>
                         <button onClick={() => deleteWeightEntry(entry.id)}
-                          className="p-1.5 hover:bg-red-50 rounded-lg text-gray-300 hover:text-red-400 flex-shrink-0">
+                          className="p-1.5 hover:bg-red-900/30 rounded-lg text-gray-600 hover:text-red-400 flex-shrink-0">
                           <Trash2 size={14} />
                         </button>
                       </div>
@@ -482,6 +635,13 @@ export default function ProgressPage() {
           onAdd={handleAdd}
           onClose={() => setShowForm(false)}
           heightCm={profile?.height}
+        />
+      )}
+
+      {showGarminImport && (
+        <GarminImportModal
+          onImport={handleGarminImport}
+          onClose={() => setShowGarminImport(false)}
         />
       )}
     </div>

@@ -61,7 +61,7 @@ export function PhotoUpload({ onPhoto, preview, onClear, label = 'Add Photo' }: 
       onDragLeave={() => setDragging(false)}
       onDrop={handleDrop}
       className={`w-full h-36 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors
-        ${dragging ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 hover:border-emerald-300 hover:bg-gray-50'}`}
+        ${dragging ? 'border-emerald-400 bg-emerald-950/30' : 'border-gray-600 hover:border-emerald-500 hover:bg-gray-700/50'}`}
     >
       <Camera size={28} className="text-gray-400" />
       <span className="text-sm text-gray-500">{label}</span>

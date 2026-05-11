@@ -1,8 +1,12 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #111827;
+  --foreground: #f9fafb;
+}
+
+html {
+  font-size: 18px;
 }
 
 body {
@@ -19,6 +23,25 @@ body {
   padding-bottom: 88px;
 }
 
+input:not([type="file"]):not([type="checkbox"]):not([type="radio"]):not([type="date"]),
+select,
+textarea {
+  background-color: #374151;
+  color: #f9fafb;
+  color-scheme: dark;
+}
+
+input[type="date"] {
+  background-color: #374151;
+  color: #f9fafb;
+  color-scheme: dark;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #9ca3af;
+}
+
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }

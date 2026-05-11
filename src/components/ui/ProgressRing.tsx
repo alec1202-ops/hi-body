@@ -50,8 +50,8 @@ export function ProgressRing({
       </svg>
       {(label || sublabel) && (
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-          {label && <span className="text-sm font-bold text-gray-800 leading-tight">{label}</span>}
-          {sublabel && <span className="text-xs text-gray-500 leading-tight">{sublabel}</span>}
+          {label && <span className="text-sm font-bold text-white leading-tight">{label}</span>}
+          {sublabel && <span className="text-xs text-gray-400 leading-tight">{sublabel}</span>}
         </div>
       )}
     </div>

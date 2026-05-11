@@ -9,6 +9,7 @@ export interface UserProfile {
   goal: 'lose' | 'maintain' | 'gain';
   dailyCalorieTarget: number;
   dailyProteinTarget: number; // g
+  dailyWaterTarget: number; // ml, default 2000
   customBMR?: number; // manual override for BMR
 }
 
@@ -43,6 +44,7 @@ export interface FoodEntry {
   imageUrl?: string;
   favoriteMealId?: string; // if matched from favorites
   estimatedByAI: boolean;
+  aiFeedback?: 'accurate' | 'inaccurate'; // user rating for AI estimates
   timestamp: string;
 }
 
@@ -119,6 +121,35 @@ export interface HealthReport {
   hdl?: number;                // HDL mg/dL
   triglycerides?: number;      // 三酸甘油酯 mg/dL
   notes?: string;
+}
+
+export interface WaterEntry {
+  id: string;
+  date: string; // YYYY-MM-DD
+  amount: number; // ml
+  timestamp: string;
+}
+
+export type SupplementUnit = 'mg' | 'IU' | 'mcg' | 'g' | 'ml' | '顆' | '錠' | '包' | '滴';
+
+export interface SupplementEntry {
+  id: string;
+  date: string; // YYYY-MM-DD
+  name: string;
+  dose: number;
+  unit: SupplementUnit;
+  notes?: string;
+  templateId?: string;
+  timestamp: string;
+}
+
+export interface SupplementTemplate {
+  id: string;
+  name: string;
+  dose: number;
+  unit: SupplementUnit;
+  notes?: string;
+  createdAt: string;
 }
 
 export interface StravaTokens {
