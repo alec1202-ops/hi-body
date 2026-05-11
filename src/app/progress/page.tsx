@@ -63,7 +63,8 @@ function WeightForm({ onAdd, onClose, heightCm }: {
         <div className="overflow-y-auto flex-1 min-h-0 p-5 pb-0" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
           <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-4" />
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-white">記錄體組成</h2>
+            <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-200">取消</button>
+            <h2 className="text-base font-bold text-white">記錄體組成</h2>
             <button
               onClick={handleSubmit}
               disabled={!weight}
@@ -133,11 +134,6 @@ function WeightForm({ onAdd, onClose, heightCm }: {
               onChange={(e) => setNotes(e.target.value)}
               className="w-full px-3 py-2 border border-gray-600 rounded-xl text-sm focus:outline-none focus:border-emerald-400" />
           </div>
-        </div>
-        <div className="px-4 pt-3 border-t border-gray-700 bg-gray-800 flex gap-2"
-          style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
-          <Button variant="secondary" onClick={onClose} className="flex-1">取消</Button>
-          <Button onClick={handleSubmit} disabled={!weight} className="flex-1">儲存體組成</Button>
         </div>
       </div>
     </div>
@@ -277,8 +273,18 @@ function GarminImportModal({
         onClick={(e) => e.stopPropagation()}>
         <div className="overflow-y-auto flex-1 min-h-0 p-5 pb-0" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
           <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-4" />
-          <h2 className="text-lg font-bold text-white mb-1">匯入 Garmin 體重</h2>
-          <p className="text-xs text-gray-400 mb-4">
+          <div className="flex items-center justify-between mb-1">
+            <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-200">取消</button>
+            <h2 className="text-base font-bold text-white">匯入 Garmin 體重</h2>
+            <Button
+              onClick={handleConfirm}
+              disabled={sortedEntries.length === 0}
+              className="text-sm px-3 py-1.5"
+            >
+              確認 {sortedEntries.length > 0 ? `(${sortedEntries.length})` : ''}
+            </Button>
+          </div>
+          <p className="text-xs text-gray-400 mb-4 text-center">
             截圖 Garmin Connect 的體重圖表，支援一次選多張或分批加入
           </p>
 
@@ -353,17 +359,6 @@ function GarminImportModal({
           )}
         </div>
 
-        <div className="px-4 pt-3 border-t border-gray-700 bg-gray-800 flex gap-2"
-          style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
-          <Button variant="secondary" onClick={onClose} className="flex-1">取消</Button>
-          <Button
-            onClick={handleConfirm}
-            disabled={sortedEntries.length === 0}
-            className="flex-1"
-          >
-            確認匯入 {sortedEntries.length > 0 ? `(${sortedEntries.length} 筆)` : ''}
-          </Button>
-        </div>
       </div>
     </div>
   );

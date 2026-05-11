@@ -1,6 +1,7 @@
-export const APP_VERSION = '1.6.2';
+export const APP_VERSION = '1.6.3';
 export const APP_BUILD_DATE = '2026-05-11';
 // Changelog:
+// 1.6.3 (2026-05-11) — 所有 modal 確認按鈕統一移至頂部，徹底解決 iPhone 底部遮擋問題
 // 1.6.2 (2026-05-11) — 修正 iPhone bottom safe area 遮住確認按鈕
 // 1.6.1 (2026-05-11) — Garmin 匯入支援多張截圖一次選取或分批加入
 // 1.6.0 (2026-05-11) — 體重預測升級：實測線性回歸趨勢、Garmin 截圖 AI 匯入、高蛋白+重訓熱量因子修正

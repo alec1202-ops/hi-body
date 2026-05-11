@@ -91,7 +91,8 @@ function AddExerciseForm({ onAdd, onClose, date, userWeight }: AddExerciseFormPr
         <div className="overflow-y-auto flex-1 min-h-0 p-5 pb-0" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
         <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-4" />
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-white">新增運動記錄</h2>
+          <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-200">取消</button>
+          <h2 className="text-base font-bold text-white">新增運動記錄</h2>
           <button
             onClick={handleSubmit}
             className="px-4 py-1.5 bg-emerald-500 text-white text-sm font-semibold rounded-xl"
@@ -186,12 +187,6 @@ function AddExerciseForm({ onAdd, onClose, date, userWeight }: AddExerciseFormPr
         </div>
 
         {error && <p className="text-xs text-red-400 mb-3">{error}</p>}
-        </div>
-
-        {/* Sticky bottom buttons */}
-        <div className="p-4 pt-3 border-t border-gray-700 bg-gray-800 flex gap-2">
-          <Button variant="secondary" onClick={onClose} className="flex-1">取消</Button>
-          <Button onClick={handleSubmit} className="flex-1 py-3 text-base">✅ 新增運動</Button>
         </div>
       </div>
     </div>

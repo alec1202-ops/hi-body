@@ -100,17 +100,24 @@ function AddForm({
       >
         <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-4" />
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-white">新增補充品</h2>
+          <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-200">取消</button>
           <div className="flex items-center gap-2">
+            <h2 className="text-base font-bold text-white">新增補充品</h2>
             <button
               onClick={() => setShowCamera(!showCamera)}
-              className={`p-2 rounded-xl transition-colors ${showCamera ? 'bg-purple-900/60 text-purple-400' : 'text-gray-400 hover:text-gray-200'}`}
+              className={`p-1.5 rounded-xl transition-colors ${showCamera ? 'bg-purple-900/60 text-purple-400' : 'text-gray-400 hover:text-gray-200'}`}
               title="AI 標籤辨識"
             >
-              <Camera size={18} />
+              <Camera size={16} />
             </button>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-200"><X size={20} /></button>
           </div>
+          <button
+            onClick={handleSubmit}
+            disabled={!name.trim() || !dose}
+            className="px-4 py-1.5 bg-emerald-500 disabled:bg-gray-600 text-white text-sm font-semibold rounded-xl"
+          >
+            新增
+          </button>
         </div>
 
         {/* AI camera section */}
@@ -212,13 +219,6 @@ function AddForm({
           </label>
         </div>
 
-        <button
-          onClick={handleSubmit}
-          disabled={!name.trim() || !dose}
-          className="mt-4 w-full py-3 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-white font-semibold rounded-xl transition-colors"
-        >
-          新增
-        </button>
       </div>
     </div>
   );
@@ -251,8 +251,15 @@ function EditTemplateSheet({
       <div className="bg-gray-800 w-full max-w-[480px] rounded-t-3xl p-5" onClick={(e) => e.stopPropagation()}>
         <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-4" />
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-white">編輯常用補充品</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-200"><X size={20} /></button>
+          <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-200">取消</button>
+          <h2 className="text-base font-bold text-white">編輯常用補充品</h2>
+          <button
+            onClick={handleSave}
+            disabled={!name.trim() || !dose}
+            className="px-4 py-1.5 bg-emerald-500 disabled:bg-gray-600 text-white text-sm font-semibold rounded-xl"
+          >
+            儲存
+          </button>
         </div>
         <div className="space-y-3">
           <input
@@ -286,13 +293,6 @@ function EditTemplateSheet({
             className="w-full px-3 py-2.5 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-400"
           />
         </div>
-        <button
-          onClick={handleSave}
-          disabled={!name.trim() || !dose}
-          className="mt-4 w-full py-3 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-white font-semibold rounded-xl transition-colors"
-        >
-          儲存
-        </button>
       </div>
     </div>
   );
