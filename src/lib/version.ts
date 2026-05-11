@@ -1,6 +1,7 @@
-export const APP_VERSION = '1.6.3';
+export const APP_VERSION = '1.6.4';
 export const APP_BUILD_DATE = '2026-05-11';
 // Changelog:
+// 1.6.4 (2026-05-11) — Garmin 匯入修正滾動 + 完整體組成（體脂/肌肉/水份/骨質）提取
 // 1.6.3 (2026-05-11) — 所有 modal 確認按鈕統一移至頂部，徹底解決 iPhone 底部遮擋問題
 // 1.6.2 (2026-05-11) — 修正 iPhone bottom safe area 遮住確認按鈕
 // 1.6.1 (2026-05-11) — Garmin 匯入支援多張截圖一次選取或分批加入

@@ -186,6 +186,14 @@ function TrendChart({
 }
 
 // ─── Garmin Import Modal ──────────────────────────────────────────────────────
+interface GarminEntry {
+  weight: number;
+  bodyFat?: number;
+  muscleMass?: number;
+  bodyWater?: number;
+  boneMass?: number;
+}
+
 function GarminImportModal({
   onImport,
   onClose,
@@ -195,8 +203,8 @@ function GarminImportModal({
 }) {
   const [previews, setPreviews] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  // Map from date → weight so later photos override earlier for same date
-  const [entryMap, setEntryMap] = useState<Record<string, number>>({});
+  // Map from date → full body composition entry
+  const [entryMap, setEntryMap] = useState<Record<string, GarminEntry>>({});
   const [error, setError] = useState('');
   const [lastAddedCount, setLastAddedCount] = useState(0);
   const fileRef = React.useRef<HTMLInputElement>(null);
@@ -214,22 +222,26 @@ function GarminImportModal({
         reader.onload = (e) => res(e.target!.result as string);
         reader.readAsDataURL(file);
       });
-      const base64 = dataUrl.split(',')[1];
-      const previewUrl = dataUrl;
-      setPreviews((prev) => [...prev, previewUrl]);
+      setPreviews((prev) => [...prev, dataUrl]);
 
       try {
         const resp = await fetch('/api/extract-weight', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: base64, mimeType: file.type }),
+          body: JSON.stringify({ image: dataUrl.split(',')[1], mimeType: file.type }),
         });
         const data = await resp.json();
         if (data.entries?.length) {
           setEntryMap((prev) => {
             const next = { ...prev };
-            for (const e of data.entries as { date: string; weight: number }[]) {
-              next[e.date] = e.weight;
+            for (const e of data.entries as ({ date: string } & GarminEntry)[]) {
+              next[e.date] = {
+                weight: e.weight,
+                ...(e.bodyFat != null ? { bodyFat: e.bodyFat } : {}),
+                ...(e.muscleMass != null ? { muscleMass: e.muscleMass } : {}),
+                ...(e.bodyWater != null ? { bodyWater: e.bodyWater } : {}),
+                ...(e.boneMass != null ? { boneMass: e.boneMass } : {}),
+              };
             }
             return next;
           });
@@ -248,22 +260,17 @@ function GarminImportModal({
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     if (files.length) processFiles(files);
-    // reset input so same file can be re-selected
     e.target.value = '';
   }
 
   function removeEntry(date: string) {
-    setEntryMap((prev) => {
-      const next = { ...prev };
-      delete next[date];
-      return next;
-    });
+    setEntryMap((prev) => { const next = { ...prev }; delete next[date]; return next; });
   }
 
   const sortedEntries = Object.entries(entryMap).sort((a, b) => a[0].localeCompare(b[0]));
 
   function handleConfirm() {
-    onImport(sortedEntries.map(([date, weight]) => ({ date, weight })));
+    onImport(sortedEntries.map(([date, e]) => ({ date, ...e })));
     onClose();
   }
 
@@ -271,11 +278,13 @@ function GarminImportModal({
     <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center" onClick={onClose}>
       <div className="bg-gray-800 w-full max-w-[480px] rounded-t-3xl max-h-[90dvh] flex flex-col"
         onClick={(e) => e.stopPropagation()}>
-        <div className="overflow-y-auto flex-1 min-h-0 p-5 pb-0" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-          <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-4" />
-          <div className="flex items-center justify-between mb-1">
+
+        {/* ── Fixed header (never scrolls) ── */}
+        <div className="px-5 pt-4 pb-3 flex-shrink-0">
+          <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-3" />
+          <div className="flex items-center justify-between">
             <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-200">取消</button>
-            <h2 className="text-base font-bold text-white">匯入 Garmin 體重</h2>
+            <h2 className="text-base font-bold text-white">匯入 Garmin 體組成</h2>
             <Button
               onClick={handleConfirm}
               disabled={sortedEntries.length === 0}
@@ -284,81 +293,79 @@ function GarminImportModal({
               確認 {sortedEntries.length > 0 ? `(${sortedEntries.length})` : ''}
             </Button>
           </div>
-          <p className="text-xs text-gray-400 mb-4 text-center">
-            截圖 Garmin Connect 的體重圖表，支援一次選多張或分批加入
+          <p className="text-xs text-gray-400 mt-1.5 text-center">
+            支援體重、體脂、肌肉量、水份等，一次可多選
           </p>
+        </div>
 
-          {/* Upload area */}
+        {/* ── Scrollable body ── */}
+        <div className="overflow-y-auto flex-1 min-h-0 px-5 pb-6" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+
+          {/* Upload button */}
           <button
             onClick={() => fileRef.current?.click()}
-            className="w-full py-3.5 border-2 border-dashed border-gray-600 hover:border-indigo-500 hover:bg-indigo-950/20 rounded-xl flex items-center justify-center gap-2.5 text-gray-400 hover:text-indigo-300 transition-colors mb-3"
+            className="w-full py-4 border-2 border-dashed border-gray-600 hover:border-indigo-500 hover:bg-indigo-950/20 rounded-xl flex items-center justify-center gap-2.5 text-gray-400 hover:text-indigo-300 transition-colors mb-3"
           >
-            <Upload size={18} />
+            <Upload size={20} />
             <span className="text-sm font-medium">
               {previews.length === 0 ? '選擇截圖（可多選）' : '再加入截圖'}
             </span>
           </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={handleChange}
-          />
+          <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={handleChange} />
 
-          {/* Thumbnail row */}
+          {/* Thumbnails */}
           {previews.length > 0 && (
             <div className="flex gap-2 overflow-x-auto pb-2 mb-3">
               {previews.map((src, i) => (
-                <img
-                  key={i}
-                  src={src}
-                  alt={`截圖 ${i + 1}`}
-                  className="h-16 w-auto rounded-lg flex-shrink-0 border border-gray-600 object-cover"
-                />
+                <img key={i} src={src} alt={`截圖 ${i + 1}`}
+                  className="h-16 w-auto rounded-lg flex-shrink-0 border border-gray-600 object-cover" />
               ))}
             </div>
           )}
 
           {loading && (
-            <div className="flex items-center justify-center gap-2 py-3 text-indigo-400">
+            <div className="flex items-center justify-center gap-2 py-4 text-indigo-400">
               <Loader2 size={16} className="animate-spin" />
               <span className="text-sm">AI 分析中…</span>
             </div>
           )}
 
           {!loading && lastAddedCount > 0 && (
-            <p className="text-xs text-emerald-400 text-center mb-2">
-              ✓ 新增 {lastAddedCount} 筆資料
-            </p>
+            <p className="text-xs text-emerald-400 text-center mb-2">✓ 辨識到 {lastAddedCount} 筆資料</p>
           )}
+          {error && <p className="text-sm text-red-400 text-center mb-2">{error}</p>}
 
-          {error && <p className="text-sm text-red-400 py-1 text-center mb-2">{error}</p>}
-
+          {/* Entry list */}
           {sortedEntries.length > 0 && (
-            <div className="mb-4">
-              <p className="text-xs text-gray-400 mb-2">
-                共 {sortedEntries.length} 筆（可個別刪除）：
-              </p>
-              <div className="space-y-1.5 max-h-56 overflow-y-auto">
-                {sortedEntries.map(([date, weight]) => (
-                  <div key={date} className="flex items-center justify-between bg-gray-700/60 rounded-xl px-3 py-2">
-                    <div className="flex items-center gap-3">
-                      <Check size={14} className="text-emerald-400 flex-shrink-0" />
-                      <span className="text-sm text-gray-200">{date}</span>
-                      <span className="text-sm font-bold text-emerald-400">{weight} kg</span>
+            <div>
+              <p className="text-xs text-gray-400 mb-2">共 {sortedEntries.length} 筆（可個別刪除）：</p>
+              <div className="space-y-2">
+                {sortedEntries.map(([date, e]) => (
+                  <div key={date} className="bg-gray-700/60 rounded-xl px-3 py-2.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Check size={13} className="text-emerald-400 flex-shrink-0" />
+                        <span className="text-xs text-gray-400">{date}</span>
+                        <span className="text-sm font-bold text-emerald-400">{e.weight} kg</span>
+                      </div>
+                      <button onClick={() => removeEntry(date)} className="text-gray-500 hover:text-red-400 p-1">
+                        <X size={13} />
+                      </button>
                     </div>
-                    <button onClick={() => removeEntry(date)} className="text-gray-500 hover:text-red-400 p-1">
-                      <X size={13} />
-                    </button>
+                    {(e.bodyFat != null || e.muscleMass != null || e.bodyWater != null || e.boneMass != null) && (
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 ml-5 text-[11px] text-gray-400">
+                        {e.bodyFat != null && <span>體脂 {e.bodyFat}%</span>}
+                        {e.muscleMass != null && <span>肌肉 {e.muscleMass}kg</span>}
+                        {e.bodyWater != null && <span>水份 {e.bodyWater}%</span>}
+                        {e.boneMass != null && <span>骨質 {e.boneMass}kg</span>}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
             </div>
           )}
         </div>
-
       </div>
     </div>
   );
