@@ -196,41 +196,77 @@ function GarminImportModal({
   onImport: (entries: Omit<WeightEntry, 'id'>[]) => void;
   onClose: () => void;
 }) {
-  const [preview, setPreview] = useState<string | undefined>();
+  const [previews, setPreviews] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const [extracted, setExtracted] = useState<{ date: string; weight: number }[]>([]);
+  // Map from date → weight so later photos override earlier for same date
+  const [entryMap, setEntryMap] = useState<Record<string, number>>({});
   const [error, setError] = useState('');
+  const [lastAddedCount, setLastAddedCount] = useState(0);
+  const fileRef = React.useRef<HTMLInputElement>(null);
 
-  async function handlePhoto(base64: string, mimeType: string, previewUrl: string) {
-    setPreview(previewUrl);
+  async function processFiles(files: File[]) {
+    if (!files.length) return;
     setLoading(true);
     setError('');
-    setExtracted([]);
-    try {
-      const res = await fetch('/api/extract-weight', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: base64, mimeType }),
+    setLastAddedCount(0);
+    let newCount = 0;
+
+    for (const file of files) {
+      const dataUrl: string = await new Promise((res) => {
+        const reader = new FileReader();
+        reader.onload = (e) => res(e.target!.result as string);
+        reader.readAsDataURL(file);
       });
-      const data = await res.json();
-      if (data.entries && data.entries.length > 0) {
-        setExtracted(data.entries);
-      } else {
-        setError('無法從圖片中辨識體重資料，請確認截圖包含日期和體重數值。');
+      const base64 = dataUrl.split(',')[1];
+      const previewUrl = dataUrl;
+      setPreviews((prev) => [...prev, previewUrl]);
+
+      try {
+        const resp = await fetch('/api/extract-weight', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: base64, mimeType: file.type }),
+        });
+        const data = await resp.json();
+        if (data.entries?.length) {
+          setEntryMap((prev) => {
+            const next = { ...prev };
+            for (const e of data.entries as { date: string; weight: number }[]) {
+              next[e.date] = e.weight;
+            }
+            return next;
+          });
+          newCount += data.entries.length;
+        }
+      } catch {
+        // continue to next file
       }
-    } catch {
-      setError('分析失敗，請重試。');
-    } finally {
-      setLoading(false);
     }
+
+    if (newCount === 0) setError('未能辨識體重資料，請確認截圖包含日期和體重數值。');
+    setLastAddedCount(newCount);
+    setLoading(false);
   }
 
-  function removeEntry(i: number) {
-    setExtracted((prev) => prev.filter((_, idx) => idx !== i));
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length) processFiles(files);
+    // reset input so same file can be re-selected
+    e.target.value = '';
   }
+
+  function removeEntry(date: string) {
+    setEntryMap((prev) => {
+      const next = { ...prev };
+      delete next[date];
+      return next;
+    });
+  }
+
+  const sortedEntries = Object.entries(entryMap).sort((a, b) => a[0].localeCompare(b[0]));
 
   function handleConfirm() {
-    onImport(extracted.map((e) => ({ date: e.date, weight: e.weight })));
+    onImport(sortedEntries.map(([date, weight]) => ({ date, weight })));
     onClose();
   }
 
@@ -241,46 +277,72 @@ function GarminImportModal({
         <div className="overflow-y-auto flex-1 min-h-0 p-5 pb-0" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
           <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-4" />
           <h2 className="text-lg font-bold text-white mb-1">匯入 Garmin 體重</h2>
-          <p className="text-xs text-gray-400 mb-4">截圖 Garmin Connect 的體重圖表，AI 將自動提取資料</p>
+          <p className="text-xs text-gray-400 mb-4">
+            截圖 Garmin Connect 的體重圖表，支援一次選多張或分批加入
+          </p>
 
-          {!preview ? (
-            <PhotoUpload
-              onPhoto={handlePhoto}
-              label="上傳 Garmin 截圖"
-            />
-          ) : (
-            <div className="relative mb-4">
-              <img src={preview} alt="Garmin截圖" className="w-full rounded-xl object-cover max-h-48" />
-              <button
-                onClick={() => { setPreview(undefined); setExtracted([]); setError(''); }}
-                className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1"
-              >
-                <X size={14} />
-              </button>
+          {/* Upload area */}
+          <button
+            onClick={() => fileRef.current?.click()}
+            className="w-full py-3.5 border-2 border-dashed border-gray-600 hover:border-indigo-500 hover:bg-indigo-950/20 rounded-xl flex items-center justify-center gap-2.5 text-gray-400 hover:text-indigo-300 transition-colors mb-3"
+          >
+            <Upload size={18} />
+            <span className="text-sm font-medium">
+              {previews.length === 0 ? '選擇截圖（可多選）' : '再加入截圖'}
+            </span>
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleChange}
+          />
+
+          {/* Thumbnail row */}
+          {previews.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto pb-2 mb-3">
+              {previews.map((src, i) => (
+                <img
+                  key={i}
+                  src={src}
+                  alt={`截圖 ${i + 1}`}
+                  className="h-16 w-auto rounded-lg flex-shrink-0 border border-gray-600 object-cover"
+                />
+              ))}
             </div>
           )}
 
           {loading && (
-            <div className="flex items-center justify-center gap-2 py-4 text-emerald-400">
-              <Loader2 size={18} className="animate-spin" />
+            <div className="flex items-center justify-center gap-2 py-3 text-indigo-400">
+              <Loader2 size={16} className="animate-spin" />
               <span className="text-sm">AI 分析中…</span>
             </div>
           )}
 
-          {error && <p className="text-sm text-red-400 py-2 text-center">{error}</p>}
+          {!loading && lastAddedCount > 0 && (
+            <p className="text-xs text-emerald-400 text-center mb-2">
+              ✓ 新增 {lastAddedCount} 筆資料
+            </p>
+          )}
 
-          {extracted.length > 0 && (
+          {error && <p className="text-sm text-red-400 py-1 text-center mb-2">{error}</p>}
+
+          {sortedEntries.length > 0 && (
             <div className="mb-4">
-              <p className="text-xs text-gray-400 mb-2">辨識到 {extracted.length} 筆資料（可刪除不需要的）：</p>
-              <div className="space-y-1.5 max-h-52 overflow-y-auto">
-                {extracted.map((e, i) => (
-                  <div key={i} className="flex items-center justify-between bg-gray-700/60 rounded-xl px-3 py-2">
+              <p className="text-xs text-gray-400 mb-2">
+                共 {sortedEntries.length} 筆（可個別刪除）：
+              </p>
+              <div className="space-y-1.5 max-h-56 overflow-y-auto">
+                {sortedEntries.map(([date, weight]) => (
+                  <div key={date} className="flex items-center justify-between bg-gray-700/60 rounded-xl px-3 py-2">
                     <div className="flex items-center gap-3">
                       <Check size={14} className="text-emerald-400 flex-shrink-0" />
-                      <span className="text-sm text-gray-200">{e.date}</span>
-                      <span className="text-sm font-bold text-emerald-400">{e.weight} kg</span>
+                      <span className="text-sm text-gray-200">{date}</span>
+                      <span className="text-sm font-bold text-emerald-400">{weight} kg</span>
                     </div>
-                    <button onClick={() => removeEntry(i)} className="text-gray-500 hover:text-red-400 p-1">
+                    <button onClick={() => removeEntry(date)} className="text-gray-500 hover:text-red-400 p-1">
                       <X size={13} />
                     </button>
                   </div>
@@ -294,10 +356,10 @@ function GarminImportModal({
           <Button variant="secondary" onClick={onClose} className="flex-1">取消</Button>
           <Button
             onClick={handleConfirm}
-            disabled={extracted.length === 0}
+            disabled={sortedEntries.length === 0}
             className="flex-1"
           >
-            確認匯入 {extracted.length > 0 ? `(${extracted.length} 筆)` : ''}
+            確認匯入 {sortedEntries.length > 0 ? `(${sortedEntries.length} 筆)` : ''}
           </Button>
         </div>
       </div>
