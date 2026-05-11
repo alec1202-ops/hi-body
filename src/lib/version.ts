@@ -1,6 +1,7 @@
-export const APP_VERSION = '1.6.1';
+export const APP_VERSION = '1.6.2';
 export const APP_BUILD_DATE = '2026-05-11';
 // Changelog:
+// 1.6.2 (2026-05-11) — 修正 iPhone bottom safe area 遮住確認按鈕
 // 1.6.1 (2026-05-11) — Garmin 匯入支援多張截圖一次選取或分批加入
 // 1.6.0 (2026-05-11) — 體重預測升級：實測線性回歸趨勢、Garmin 截圖 AI 匯入、高蛋白+重訓熱量因子修正
 // 1.5.0 (2026-05-05) — 補充品 Day 3：AI 診斷整合補充品打卡率 + 血液指標交叉比對

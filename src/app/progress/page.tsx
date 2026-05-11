@@ -134,7 +134,8 @@ function WeightForm({ onAdd, onClose, heightCm }: {
               className="w-full px-3 py-2 border border-gray-600 rounded-xl text-sm focus:outline-none focus:border-emerald-400" />
           </div>
         </div>
-        <div className="p-4 pt-3 border-t border-gray-700 bg-gray-800 flex gap-2">
+        <div className="px-4 pt-3 border-t border-gray-700 bg-gray-800 flex gap-2"
+          style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
           <Button variant="secondary" onClick={onClose} className="flex-1">取消</Button>
           <Button onClick={handleSubmit} disabled={!weight} className="flex-1">儲存體組成</Button>
         </div>
@@ -352,7 +353,8 @@ function GarminImportModal({
           )}
         </div>
 
-        <div className="p-4 pt-3 border-t border-gray-700 bg-gray-800 flex gap-2">
+        <div className="px-4 pt-3 border-t border-gray-700 bg-gray-800 flex gap-2"
+          style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
           <Button variant="secondary" onClick={onClose} className="flex-1">取消</Button>
           <Button
             onClick={handleConfirm}
