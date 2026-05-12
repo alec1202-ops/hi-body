@@ -392,7 +392,10 @@ export default function ProgressPage() {
   const chartData = sortedPeriod.map((e) => ({
     date: format(parseISO(e.date), days <= 30 ? 'M/d' : 'M月'),
     weight: e.weight,
-    bmi: e.bmi,
+    // Auto-calculate BMI from weight + profile height when not stored
+    bmi: e.bmi ?? (profile?.height
+      ? parseFloat((e.weight / Math.pow(profile.height / 100, 2)).toFixed(1))
+      : undefined),
     bodyFat: e.bodyFat,
     muscleMass: e.muscleMass,
     boneMass: e.boneMass,

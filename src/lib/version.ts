@@ -1,6 +1,7 @@
-export const APP_VERSION = '1.6.5';
+export const APP_VERSION = '1.6.6';
 export const APP_BUILD_DATE = '2026-05-11';
 // Changelog:
+// 1.6.6 (2026-05-12) — 修正 BMI 趨勢圖：即時從體重+身高計算，無需重新匯入
 // 1.6.5 (2026-05-11) — Garmin 匯入自動計算 BMI（體重 + 身高）
 // 1.6.4 (2026-05-11) — Garmin 匯入修正滾動 + 完整體組成（體脂/肌肉/水份/骨質）提取
 // 1.6.3 (2026-05-11) — 所有 modal 確認按鈕統一移至頂部，徹底解決 iPhone 底部遮擋問題
