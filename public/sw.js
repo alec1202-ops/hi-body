@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hi-body-v15';
+const CACHE_NAME = 'hi-body-v16';
 const STATIC_ASSETS = ['/', '/food', '/exercise', '/supplements', '/progress', '/profile'];
 
 self.addEventListener('install', (event) => {

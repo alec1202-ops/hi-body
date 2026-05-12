@@ -78,7 +78,8 @@ function ReportForm({ initial, onSave, onClose }: {
   const [notes, setNotes] = useState(initial?.notes || '');
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ hormones: true });
   const [extracting, setExtracting] = useState(false);
-  const [extractMsg, setExtractMsg] = useState('');
+  const [fileStatuses, setFileStatuses] = useState<{ name: string; status: 'pending' | 'done' | 'error'; count?: number }[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
   function setVal(key: string, v: string) {
@@ -93,15 +94,28 @@ function ReportForm({ initial, onSave, onClose }: {
   }
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    e.target.value = '';
+
     setExtracting(true);
-    setExtractMsg('AI 識別中，請稍候...');
-    try {
-      const reader = new FileReader();
-      reader.onload = async (ev) => {
-        const result = ev.target?.result as string;
-        const base64 = result.split(',')[1];
+    setFileStatuses(files.map((f) => ({ name: f.name, status: 'pending' })));
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const dataUrl: string = await new Promise((res) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => res(ev.target!.result as string);
+        reader.readAsDataURL(file);
+      });
+
+      // Only add image previews (not PDFs)
+      if (file.type.startsWith('image/')) {
+        setPreviews((prev) => [...prev, dataUrl]);
+      }
+
+      try {
+        const base64 = dataUrl.split(',')[1];
         const mimeType = file.type || 'image/jpeg';
         const res = await fetch('/api/extract-health-report', {
           method: 'POST',
@@ -111,39 +125,47 @@ function ReportForm({ initial, onSave, onClose }: {
         const data = await res.json();
         if (data.values && Object.keys(data.values).length > 0) {
           setValues((prev) => ({ ...prev, ...data.values }));
-          // Auto-open groups that have extracted data
+          // Auto-open groups that have new data
           const extracted = Object.keys(data.values);
-          const newOpen: Record<string, boolean> = { hormones: true };
-          FIELD_GROUPS.forEach((g) => {
-            if (g.fields.some((f) => extracted.includes(f.key))) newOpen[g.id] = true;
+          setOpenGroups((prev) => {
+            const next = { ...prev };
+            FIELD_GROUPS.forEach((g) => {
+              if (g.fields.some((f) => extracted.includes(f.key))) next[g.id] = true;
+            });
+            return next;
           });
-          setOpenGroups(newOpen);
-          setExtractMsg(`✅ 成功識別 ${data.count} 項數據，請確認後儲存`);
+          setFileStatuses((prev) => prev.map((s, idx) => idx === i ? { ...s, status: 'done', count: data.count } : s));
         } else {
-          setExtractMsg('⚠️ 無法識別數據，請手動輸入或換一張更清晰的照片');
+          setFileStatuses((prev) => prev.map((s, idx) => idx === i ? { ...s, status: 'error' } : s));
         }
-        setExtracting(false);
-      };
-      reader.readAsDataURL(file);
-    } catch {
-      setExtractMsg('❌ 識別失敗，請重試');
-      setExtracting(false);
+      } catch {
+        setFileStatuses((prev) => prev.map((s, idx) => idx === i ? { ...s, status: 'error' } : s));
+      }
     }
-    // Reset input so same file can be re-uploaded
-    e.target.value = '';
+
+    setExtracting(false);
   }
+
+  const totalExtracted = fileStatuses.filter((s) => s.status === 'done').reduce((sum, s) => sum + (s.count ?? 0), 0);
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center" onClick={onClose}>
       <div className="bg-gray-800 w-full max-w-[480px] rounded-t-3xl max-h-[92dvh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-        <div className="overflow-y-auto flex-1 min-h-0 p-5 pb-0" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-          <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-4" />
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-white">{initial ? '編輯健康報告' : '新增健康報告'}</h2>
+
+        {/* ── Fixed header ── */}
+        <div className="px-5 pt-4 pb-3 flex-shrink-0">
+          <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-3" />
+          <div className="flex items-center justify-between">
+            <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-200">取消</button>
+            <h2 className="text-base font-bold text-white">{initial ? '編輯健康報告' : '新增健康報告'}</h2>
             <button onClick={handleSave} className="px-4 py-1.5 bg-emerald-500 text-white text-sm font-semibold rounded-xl">
               ✅ 儲存
             </button>
           </div>
+        </div>
+
+        {/* ── Scrollable body ── */}
+        <div className="overflow-y-auto flex-1 min-h-0 px-5 pb-6" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
 
           {/* Date */}
           <div className="mb-4">
@@ -152,24 +174,52 @@ function ReportForm({ initial, onSave, onClose }: {
               className="w-full px-3 py-2 border border-gray-600 rounded-xl text-sm focus:outline-none focus:border-emerald-400" />
           </div>
 
-          {/* AI Upload */}
+          {/* AI Upload — multiple files */}
           <div className="mb-4">
             <button
               onClick={() => fileRef.current?.click()}
               disabled={extracting}
-              className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-purple-700 rounded-2xl text-sm font-medium text-purple-400 hover:bg-purple-950/30 hover:border-purple-500 transition-colors disabled:opacity-60"
+              className="w-full flex items-center justify-center gap-2 py-3.5 border-2 border-dashed border-purple-700 rounded-2xl text-sm font-medium text-purple-400 hover:bg-purple-950/30 hover:border-purple-500 transition-colors disabled:opacity-60"
             >
               {extracting
                 ? <><Loader2 size={18} className="animate-spin" /> AI 識別中...</>
-                : <><ScanLine size={18} /> 上傳健檢報告讓 AI 自動填入數值</>
+                : <><ScanLine size={18} /> {fileStatuses.length === 0 ? '上傳健檢報告（可多張）' : '再加入報告'}</>
               }
             </button>
-            <p className="text-[10px] text-gray-500 text-center mt-1">支援照片（JPG/PNG）或 PDF 文件</p>
-            <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={handleFileUpload} />
-            {extractMsg && (
-              <p className={`text-xs mt-2 text-center font-medium ${extractMsg.startsWith('✅') ? 'text-emerald-400' : extractMsg.startsWith('⚠️') ? 'text-orange-400' : 'text-red-400'}`}>
-                {extractMsg}
-              </p>
+            <p className="text-[10px] text-gray-500 text-center mt-1">支援照片（JPG/PNG）或 PDF，可一次多選</p>
+            <input ref={fileRef} type="file" accept="image/*,application/pdf" multiple className="hidden" onChange={handleFileUpload} />
+
+            {/* Image thumbnails */}
+            {previews.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto py-2 mt-1">
+                {previews.map((src, i) => (
+                  <img key={i} src={src} alt={`報告 ${i + 1}`}
+                    className="h-14 w-auto rounded-lg flex-shrink-0 border border-gray-600 object-cover" />
+                ))}
+              </div>
+            )}
+
+            {/* Per-file status */}
+            {fileStatuses.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {fileStatuses.map((s, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs">
+                    {s.status === 'pending' && <Loader2 size={12} className="animate-spin text-purple-400 flex-shrink-0" />}
+                    {s.status === 'done' && <span className="text-emerald-400 flex-shrink-0">✅</span>}
+                    {s.status === 'error' && <span className="text-orange-400 flex-shrink-0">⚠️</span>}
+                    <span className={`truncate ${s.status === 'done' ? 'text-emerald-400' : s.status === 'error' ? 'text-orange-400' : 'text-gray-400'}`}>
+                      {s.name}
+                      {s.status === 'done' && ` · 識別 ${s.count} 項`}
+                      {s.status === 'error' && ' · 無法識別'}
+                    </span>
+                  </div>
+                ))}
+                {!extracting && totalExtracted > 0 && (
+                  <p className="text-xs text-emerald-400 font-medium mt-1">
+                    共識別 {totalExtracted} 項數據，請確認後儲存
+                  </p>
+                )}
+              </div>
             )}
           </div>
 
@@ -188,16 +238,14 @@ function ReportForm({ initial, onSave, onClose }: {
                   {group.fields.map((f) => (
                     <div key={f.key}>
                       <label className="text-[10px] text-gray-400 mb-0.5 block">{f.label} {f.unit && <span className="text-gray-500">({f.unit})</span>}</label>
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="number"
-                          step="any"
-                          placeholder={f.ref}
-                          value={(values as Record<string, number | undefined>)[f.key] ?? ''}
-                          onChange={(e) => setVal(f.key, e.target.value)}
-                          className="w-full px-2 py-1.5 border border-gray-600 rounded-lg text-sm focus:outline-none focus:border-emerald-400"
-                        />
-                      </div>
+                      <input
+                        type="number"
+                        step="any"
+                        placeholder={f.ref}
+                        value={(values as Record<string, number | undefined>)[f.key] ?? ''}
+                        onChange={(e) => setVal(f.key, e.target.value)}
+                        className="w-full px-2 py-1.5 border border-gray-600 rounded-lg text-sm focus:outline-none focus:border-emerald-400"
+                      />
                     </div>
                   ))}
                 </div>
@@ -212,10 +260,6 @@ function ReportForm({ initial, onSave, onClose }: {
               placeholder="可記錄過敏原IgE/IgG、其他指標等..."
               className="w-full px-3 py-2 border border-gray-600 rounded-xl text-sm focus:outline-none focus:border-emerald-400 resize-none" />
           </div>
-        </div>
-        <div className="p-4 pt-3 border-t border-gray-700 bg-gray-800 flex gap-2">
-          <Button variant="secondary" onClick={onClose} className="flex-1">取消</Button>
-          <Button onClick={handleSave} className="flex-1">儲存報告</Button>
         </div>
       </div>
     </div>
