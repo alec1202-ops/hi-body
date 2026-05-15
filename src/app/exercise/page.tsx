@@ -88,18 +88,24 @@ function AddExerciseForm({ onAdd, onClose, date, userWeight }: AddExerciseFormPr
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center" onClick={onClose}>
       <div className="bg-gray-800 w-full max-w-[480px] rounded-t-3xl max-h-[90dvh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-        <div className="overflow-y-auto flex-1 min-h-0 p-5 pb-0" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-        <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-4" />
-        <div className="flex items-center justify-between mb-4">
-          <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-200">取消</button>
-          <h2 className="text-base font-bold text-white">新增運動記錄</h2>
-          <button
-            onClick={handleSubmit}
-            className="px-4 py-1.5 bg-emerald-500 text-white text-sm font-semibold rounded-xl"
-          >
-            ✅ 新增
-          </button>
+
+        {/* ── Fixed header ── */}
+        <div className="px-5 pt-4 pb-3 flex-shrink-0">
+          <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-3" />
+          <div className="flex items-center justify-between">
+            <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-200">取消</button>
+            <h2 className="text-base font-bold text-white">新增運動記錄</h2>
+            <button
+              onClick={handleSubmit}
+              className="px-4 py-1.5 bg-emerald-500 text-white text-sm font-semibold rounded-xl"
+            >
+              ✅ 新增
+            </button>
+          </div>
         </div>
+
+        {/* ── Scrollable body ── */}
+        <div className="overflow-y-auto flex-1 min-h-0 px-5 pb-8" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
 
         {/* Tab */}
         <div className="flex gap-1 bg-gray-700 rounded-xl p-1 mb-4">

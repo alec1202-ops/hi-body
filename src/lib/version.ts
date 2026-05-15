@@ -1,6 +1,7 @@
-export const APP_VERSION = '1.6.7';
-export const APP_BUILD_DATE = '2026-05-11';
+export const APP_VERSION = '1.6.8';
+export const APP_BUILD_DATE = '2026-05-15';
 // Changelog:
+// 1.6.8 (2026-05-15) — 修正飲食/運動/補充品所有 modal 可正常捲動（固定標題、body 可滾）
 // 1.6.7 (2026-05-12) — 健康報告支援多張照片上傳，顯示縮圖與逐檔識別狀態
 // 1.6.6 (2026-05-12) — 修正 BMI 趨勢圖：即時從體重+身高計算，無需重新匯入
 // 1.6.5 (2026-05-11) — Garmin 匯入自動計算 BMI（體重 + 身高）

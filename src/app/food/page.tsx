@@ -111,9 +111,11 @@ function AddFoodForm({ onAdd, onClose, date, favoriteMeals }: AddFoodFormProps) 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center" onClick={onClose}>
       <div className="bg-gray-800 w-full max-w-[480px] rounded-t-3xl max-h-[90dvh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-        <div className="overflow-y-auto flex-1 min-h-0 p-5 pb-0" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-          <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-4" />
-          <div className="flex items-center justify-between mb-4">
+
+        {/* ── Fixed header ── */}
+        <div className="px-5 pt-4 pb-3 flex-shrink-0">
+          <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-3" />
+          <div className="flex items-center justify-between">
             <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-200">取消</button>
             <div className="flex items-center gap-2">
               <Link href="/food/favorites" className="text-xs text-emerald-400 flex items-center gap-1">
@@ -125,7 +127,10 @@ function AddFoodForm({ onAdd, onClose, date, favoriteMeals }: AddFoodFormProps) 
               ✅ 新增
             </button>
           </div>
+        </div>
 
+        {/* ── Scrollable body ── */}
+        <div className="overflow-y-auto flex-1 min-h-0 px-5 pb-8" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
           <div className="flex gap-2 mb-4">
             {MEAL_TYPES.map((mt) => (
               <button key={mt.value} onClick={() => setMealType(mt.value)}
@@ -206,7 +211,7 @@ function AddFoodForm({ onAdd, onClose, date, favoriteMeals }: AddFoodFormProps) 
             </div>
           </div>
           {error && <p className="text-xs text-red-400 mb-3">{error}</p>}
-        </div>
+        </div>  {/* end scrollable */}
       </div>
     </div>
   );
@@ -245,57 +250,65 @@ function EditFoodForm({ entry, isAlreadyFavorite, onSave, onAddToFavorites, onCl
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center" onClick={onClose}>
-      <div className="bg-gray-800 w-full max-w-[480px] rounded-t-3xl p-5 max-h-[90dvh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-4" />
-        <div className="flex items-center justify-between mb-4">
-          <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-200">取消</button>
-          <h2 className="text-base font-bold text-white">編輯飲食</h2>
-          <button onClick={handleSave} disabled={!name.trim()}
-            className="px-4 py-1.5 bg-emerald-500 disabled:bg-gray-600 text-white text-sm font-semibold rounded-xl">
-            儲存
-          </button>
-        </div>
+      <div className="bg-gray-800 w-full max-w-[480px] rounded-t-3xl max-h-[90dvh] flex flex-col" onClick={(e) => e.stopPropagation()}>
 
-        {/* Meal type */}
-        <div className="flex gap-2 mb-4">
-          {MEAL_TYPES.map((mt) => (
-            <button key={mt.value} onClick={() => setMealType(mt.value)}
-              className={`flex-1 py-2 rounded-xl text-xs font-medium transition-colors ${mealType === mt.value ? 'bg-emerald-500 text-white' : 'bg-gray-700 text-gray-300'}`}>
-              {mt.emoji} {mt.label}
+        {/* ── Fixed header ── */}
+        <div className="px-5 pt-4 pb-3 flex-shrink-0">
+          <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-3" />
+          <div className="flex items-center justify-between">
+            <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-200">取消</button>
+            <h2 className="text-base font-bold text-white">編輯飲食</h2>
+            <button onClick={handleSave} disabled={!name.trim()}
+              className="px-4 py-1.5 bg-emerald-500 disabled:bg-gray-600 text-white text-sm font-semibold rounded-xl">
+              儲存
             </button>
-          ))}
-        </div>
-
-        <div className="space-y-3 mb-4">
-          <input type="text" placeholder="食物名稱 *" value={name} onChange={(e) => setName(e.target.value)}
-            className="w-full px-3 py-2.5 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-400" />
-          <input type="text" placeholder="份量（如 1碗~300g）" value={servingSize} onChange={(e) => setServingSize(e.target.value)}
-            className="w-full px-3 py-2.5 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-400" />
-          <div className="grid grid-cols-2 gap-2">
-            {(['calories', 'protein', 'carbs', 'fat'] as const).map((key) => (
-              <input key={key} type="number" min={0}
-                placeholder={key === 'calories' ? '熱量 (kcal)' : key === 'protein' ? '蛋白質 (g)' : key === 'carbs' ? '碳水 (g)' : '脂肪 (g)'}
-                value={nutrition[key] || ''}
-                onChange={(e) => setNutrition((n) => ({ ...n, [key]: parseFloat(e.target.value) || 0 }))}
-                className="px-3 py-2.5 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-400" />
-            ))}
           </div>
         </div>
 
-        {/* Add to favorites */}
-        <button
-          onClick={handleAddToFavorites}
-          disabled={alreadyFav}
-          className={`w-full flex items-center justify-center gap-2 py-2.5 mb-3 rounded-xl text-sm font-medium border transition-colors
-            ${alreadyFav
-              ? 'bg-yellow-900/30 border-yellow-700/50 text-yellow-400 cursor-default'
-              : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-yellow-900/30 hover:border-yellow-700 hover:text-yellow-400'
-            }`}
-        >
-          <Star size={15} className={alreadyFav ? 'fill-yellow-400 text-yellow-400' : ''} />
-          {alreadyFav ? '已在常用清單' : '加入常用飲食清單'}
-        </button>
+        {/* ── Scrollable body ── */}
+        <div className="overflow-y-auto flex-1 min-h-0 px-5 pb-8" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
 
+          {/* Meal type */}
+          <div className="flex gap-2 mb-4">
+            {MEAL_TYPES.map((mt) => (
+              <button key={mt.value} onClick={() => setMealType(mt.value)}
+                className={`flex-1 py-2 rounded-xl text-xs font-medium transition-colors ${mealType === mt.value ? 'bg-emerald-500 text-white' : 'bg-gray-700 text-gray-300'}`}>
+                {mt.emoji} {mt.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="space-y-3 mb-4">
+            <input type="text" placeholder="食物名稱 *" value={name} onChange={(e) => setName(e.target.value)}
+              className="w-full px-3 py-2.5 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-400" />
+            <input type="text" placeholder="份量（如 1碗~300g）" value={servingSize} onChange={(e) => setServingSize(e.target.value)}
+              className="w-full px-3 py-2.5 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-400" />
+            <div className="grid grid-cols-2 gap-2">
+              {(['calories', 'protein', 'carbs', 'fat'] as const).map((key) => (
+                <input key={key} type="number" min={0}
+                  placeholder={key === 'calories' ? '熱量 (kcal)' : key === 'protein' ? '蛋白質 (g)' : key === 'carbs' ? '碳水 (g)' : '脂肪 (g)'}
+                  value={nutrition[key] || ''}
+                  onChange={(e) => setNutrition((n) => ({ ...n, [key]: parseFloat(e.target.value) || 0 }))}
+                  className="px-3 py-2.5 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-400" />
+              ))}
+            </div>
+          </div>
+
+          {/* Add to favorites */}
+          <button
+            onClick={handleAddToFavorites}
+            disabled={alreadyFav}
+            className={`w-full flex items-center justify-center gap-2 py-2.5 mb-3 rounded-xl text-sm font-medium border transition-colors
+              ${alreadyFav
+                ? 'bg-yellow-900/30 border-yellow-700/50 text-yellow-400 cursor-default'
+                : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-yellow-900/30 hover:border-yellow-700 hover:text-yellow-400'
+              }`}
+          >
+            <Star size={15} className={alreadyFav ? 'fill-yellow-400 text-yellow-400' : ''} />
+            {alreadyFav ? '已在常用清單' : '加入常用飲食清單'}
+          </button>
+
+        </div>  {/* end scrollable */}
       </div>
     </div>
   );

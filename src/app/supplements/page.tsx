@@ -95,30 +95,36 @@ function AddForm({
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center" onClick={onClose}>
       <div
-        className="bg-gray-800 w-full max-w-[480px] rounded-t-3xl p-5 max-h-[90vh] overflow-y-auto"
+        className="bg-gray-800 w-full max-w-[480px] rounded-t-3xl max-h-[90dvh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-4" />
-        <div className="flex items-center justify-between mb-4">
-          <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-200">取消</button>
-          <div className="flex items-center gap-2">
-            <h2 className="text-base font-bold text-white">新增補充品</h2>
+        {/* ── Fixed header ── */}
+        <div className="px-5 pt-4 pb-3 flex-shrink-0">
+          <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-3" />
+          <div className="flex items-center justify-between">
+            <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-200">取消</button>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-bold text-white">新增補充品</h2>
+              <button
+                onClick={() => setShowCamera(!showCamera)}
+                className={`p-1.5 rounded-xl transition-colors ${showCamera ? 'bg-purple-900/60 text-purple-400' : 'text-gray-400 hover:text-gray-200'}`}
+                title="AI 標籤辨識"
+              >
+                <Camera size={16} />
+              </button>
+            </div>
             <button
-              onClick={() => setShowCamera(!showCamera)}
-              className={`p-1.5 rounded-xl transition-colors ${showCamera ? 'bg-purple-900/60 text-purple-400' : 'text-gray-400 hover:text-gray-200'}`}
-              title="AI 標籤辨識"
+              onClick={handleSubmit}
+              disabled={!name.trim() || !dose}
+              className="px-4 py-1.5 bg-emerald-500 disabled:bg-gray-600 text-white text-sm font-semibold rounded-xl"
             >
-              <Camera size={16} />
+              新增
             </button>
           </div>
-          <button
-            onClick={handleSubmit}
-            disabled={!name.trim() || !dose}
-            className="px-4 py-1.5 bg-emerald-500 disabled:bg-gray-600 text-white text-sm font-semibold rounded-xl"
-          >
-            新增
-          </button>
         </div>
+
+        {/* ── Scrollable body ── */}
+        <div className="overflow-y-auto flex-1 min-h-0 px-5 pb-8" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
 
         {/* AI camera section */}
         {showCamera && (
@@ -219,6 +225,7 @@ function AddForm({
           </label>
         </div>
 
+        </div>  {/* end scrollable */}
       </div>
     </div>
   );
