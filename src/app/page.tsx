@@ -39,7 +39,6 @@ export default function DashboardPage() {
   const proteinTarget = profile?.dailyProteinTarget || 0;
 
   const caloriePct = calorieTarget > 0 ? Math.round((summary.totalCaloriesIn / calorieTarget) * 100) : 0;
-  const proteinPct = proteinTarget > 0 ? Math.round((summary.totalProtein / proteinTarget) * 100) : 0;
 
   const streak = getStreak(foodEntries);
   const dayFood = foodEntries.filter((e) => e.date === date);
@@ -251,18 +250,6 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="flex flex-col items-center gap-2">
-              <ProgressRing
-                value={proteinPct}
-                size={100}
-                strokeWidth={10}
-                color="#6366f1"
-                trackColor="#1e1b4b"
-                label={`${Math.round(summary.totalProtein)}`}
-                sublabel="g 蛋白"
-              />
-              <span className="text-xs text-gray-400">蛋白質</span>
-            </div>
           </div>
         </CardContent>
       </Card>
