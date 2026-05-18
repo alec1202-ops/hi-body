@@ -608,25 +608,56 @@ export default function SupplementsPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {dayEntries.map((entry) => (
-                <div key={entry.id} className="flex items-center justify-between py-2 border-b border-gray-700/50 last:border-0">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-purple-900/40 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <Pill size={14} className="text-purple-400" />
+              {dayEntries.map((entry) => {
+                const isFav = supplementTemplates.some(
+                  (t) => t.name.toLowerCase() === entry.name.toLowerCase()
+                );
+                return (
+                  <div key={entry.id} className="flex items-center justify-between py-2 border-b border-gray-700/50 last:border-0">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-purple-900/40 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <Pill size={14} className="text-purple-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-100">{entry.name}</p>
+                        <p className="text-xs text-gray-500">{entry.dose} {entry.unit}{entry.notes ? ` · ${entry.notes}` : ''}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-100">{entry.name}</p>
-                      <p className="text-xs text-gray-500">{entry.dose} {entry.unit}{entry.notes ? ` · ${entry.notes}` : ''}</p>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => {
+                          if (isFav) {
+                            const tpl = supplementTemplates.find(
+                              (t) => t.name.toLowerCase() === entry.name.toLowerCase()
+                            );
+                            if (tpl) deleteSupplementTemplate(tpl.id);
+                          } else {
+                            const now = new Date();
+                            addSupplementTemplate({
+                              id: `tpl-${now.getTime()}`,
+                              name: entry.name,
+                              dose: entry.dose,
+                              unit: entry.unit,
+                              notes: entry.notes,
+                              createdAt: now.toISOString(),
+                            });
+                          }
+                        }}
+                        title={isFav ? '從常用移除' : '加入常用'}
+                        className={`p-1.5 transition-colors ${isFav ? 'text-yellow-400' : 'text-gray-600 hover:text-yellow-400'}`}
+                      >
+                        <Star size={14} fill={isFav ? 'currentColor' : 'none'} />
+                      </button>
+                      <button
+                        onClick={() => deleteSupplementEntry(entry.id)}
+                        className="p-1.5 text-gray-600 hover:text-red-400 transition-colors"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   </div>
-                  <button
-                    onClick={() => deleteSupplementEntry(entry.id)}
-                    className="p-1.5 text-gray-600 hover:text-red-400 transition-colors"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
