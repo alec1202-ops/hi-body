@@ -6,8 +6,9 @@ import { zhTW } from 'date-fns/locale';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine, Area, AreaChart, Legend,
+  LineChart, Line,
 } from 'recharts';
-import { Scale, Plus, Trash2, Target, ChevronDown, ChevronUp, Upload, X, Check, Loader2 } from 'lucide-react';
+import { Scale, Plus, Trash2, Target, ChevronDown, ChevronUp, Upload, X, Check, Loader2, Moon, UtensilsCrossed } from 'lucide-react';
 import { useAppStore, estimateWeightChange, linearRegressionMonthlyChange, getProteinCalorieFactor } from '@/lib/store';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -371,6 +372,172 @@ function GarminImportModal({
   );
 }
 
+// ─── Sleep Habit Chart ────────────────────────────────────────────────────────
+const DEFAULT_DINNER = '19:00';
+const DEFAULT_BED = '23:00';
+
+function timeToDecimal(t: string): number {
+  const [h, m] = t.split(':').map(Number);
+  const val = h + m / 60;
+  // treat early-morning times (00:xx–05:xx) as past midnight (24+)
+  return val < 6 ? val + 24 : val;
+}
+
+function decimalToTime(v: number): string {
+  const h = Math.floor(v) % 24;
+  const m = Math.round((v % 1) * 60);
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function SleepHabitChart({ days, period }: { days: number; period: Period }) {
+  const { dailyLogs } = useAppStore();
+  const logMap = new Map(dailyLogs.map((l) => [l.date, l]));
+
+  const dateList: string[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    dateList.push(format(subDays(new Date(), i), 'yyyy-MM-dd'));
+  }
+
+  const data = dateList.map((date) => {
+    const log = logMap.get(date);
+    const dinnerVal = timeToDecimal(log?.dinnerFinishedAt ?? DEFAULT_DINNER);
+    const bedVal = timeToDecimal(log?.bedTime ?? DEFAULT_BED);
+    const gap = bedVal - dinnerVal;
+    const isDefault = !log?.dinnerFinishedAt && !log?.bedTime;
+    return {
+      date,
+      label: days <= 14
+        ? format(parseISO(date), 'M/d (EEE)', { locale: zhTW })
+        : days <= 31
+        ? format(parseISO(date), 'M/d')
+        : format(parseISO(date), 'M/d'),
+      dinner: dinnerVal,
+      bed: bedVal,
+      gap: parseFloat(gap.toFixed(2)),
+      isDefault,
+    };
+  });
+
+  // Summary stats
+  const actualDays = data.filter((d) => !d.isDefault);
+  const avgGap = actualDays.length
+    ? actualDays.reduce((s, d) => s + d.gap, 0) / actualDays.length
+    : timeToDecimal(DEFAULT_BED) - timeToDecimal(DEFAULT_DINNER);
+  const goodDays = actualDays.filter((d) => d.gap >= 3).length;
+
+  // Y-axis domain: auto-fit from min dinner to max bed
+  const allDinner = data.map((d) => d.dinner);
+  const allBed = data.map((d) => d.bed);
+  const yMin = Math.floor(Math.min(...allDinner)) - 0.5;
+  const yMax = Math.ceil(Math.max(...allBed)) + 0.5;
+  const yTicks: number[] = [];
+  for (let t = Math.ceil(yMin); t <= Math.floor(yMax); t++) yTicks.push(t);
+
+  // X-axis: thin out labels when many days
+  const xInterval = days <= 14 ? 0 : days <= 31 ? 3 : days <= 90 ? 6 : 14;
+
+  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value: number; name: string; color: string }[]; label?: string }) => {
+    if (!active || !payload?.length) return null;
+    const d = data.find((x) => x.label === label);
+    return (
+      <div className="bg-gray-800 border border-gray-600 rounded-xl px-3 py-2 text-xs space-y-1">
+        <p className="text-gray-300 font-medium">{label}{d?.isDefault ? ' (預設)' : ''}</p>
+        {payload.map((p) => (
+          <p key={p.name} style={{ color: p.color }}>
+            {p.name === '晚餐完成' ? '🍽 ' : '🌙 '}
+            {p.name}: {decimalToTime(p.value)}
+          </p>
+        ))}
+        {payload.length === 2 && (
+          <p className="text-gray-400">間距: {(payload[1].value - payload[0].value).toFixed(1).replace('.0', '')} 小時</p>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <Card className="mb-4">
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Moon size={14} className="text-indigo-400" />
+          <h2 className="text-sm font-semibold text-gray-200">晚餐 &amp; 就寢時間趨勢</h2>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        {/* Summary row */}
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          <div className="text-center py-2 bg-gray-700/50 rounded-xl">
+            <p className="text-sm font-bold text-indigo-400">{decimalToTime(timeToDecimal(DEFAULT_BED))}</p>
+            <p className="text-[10px] text-gray-400">預設就寢</p>
+          </div>
+          <div className="text-center py-2 bg-gray-700/50 rounded-xl">
+            <p className={`text-sm font-bold ${avgGap >= 3 ? 'text-emerald-400' : avgGap >= 2 ? 'text-yellow-400' : 'text-red-400'}`}>
+              {avgGap.toFixed(1)}h
+            </p>
+            <p className="text-[10px] text-gray-400">平均間距</p>
+          </div>
+          <div className="text-center py-2 bg-gray-700/50 rounded-xl">
+            <p className="text-sm font-bold text-emerald-400">{goodDays}/{actualDays.length || days}</p>
+            <p className="text-[10px] text-gray-400">達標天數</p>
+          </div>
+        </div>
+
+        {/* Line chart */}
+        <ResponsiveContainer width="100%" height={200}>
+          <LineChart data={data} margin={{ top: 4, right: 8, left: -8, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+            <XAxis
+              dataKey="label"
+              tick={{ fontSize: 10, fill: '#9ca3af' }}
+              interval={xInterval}
+              tickLine={false}
+            />
+            <YAxis
+              domain={[yMin, yMax]}
+              ticks={yTicks}
+              tickFormatter={decimalToTime}
+              tick={{ fontSize: 10, fill: '#9ca3af' }}
+              tickLine={false}
+              width={40}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Legend wrapperStyle={{ fontSize: 11, color: '#9ca3af' }} />
+            {/* 3-hour safe gap reference band */}
+            <ReferenceLine
+              y={timeToDecimal(DEFAULT_BED)}
+              stroke="#6366f1"
+              strokeDasharray="4 4"
+              strokeOpacity={0.4}
+            />
+            <Line
+              type="monotone"
+              dataKey="dinner"
+              name="晚餐完成"
+              stroke="#f97316"
+              strokeWidth={2}
+              dot={{ r: 2, fill: '#f97316' }}
+              activeDot={{ r: 4 }}
+            />
+            <Line
+              type="monotone"
+              dataKey="bed"
+              name="就寢時間"
+              stroke="#818cf8"
+              strokeWidth={2}
+              dot={{ r: 2, fill: '#818cf8' }}
+              activeDot={{ r: 4 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+
+        <p className="text-[10px] text-gray-600 mt-2 text-center">
+          未記錄的日期以預設值（晚餐 {DEFAULT_DINNER} / 就寢 {DEFAULT_BED}）顯示
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function ProgressPage() {
   const { weightEntries, addWeightEntry, deleteWeightEntry, getDailySummary, profile, foodEntries, exerciseEntries } = useAppStore();
@@ -634,6 +801,9 @@ export default function ProgressPage() {
           </ResponsiveContainer>
         </CardContent>
       </Card>
+
+      {/* Sleep Habit Chart */}
+      <SleepHabitChart days={days} period={period} />
 
       {/* Measurement Log */}
       <Card className="mb-4">

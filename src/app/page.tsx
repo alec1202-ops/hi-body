@@ -16,13 +16,17 @@ function NightRoutineCard({ date }: { date: string }) {
   const { getDailyLog, upsertDailyLog } = useAppStore();
   const log = getDailyLog(date);
 
-  const dinner = log?.dinnerFinishedAt ?? '';
-  const bed = log?.bedTime ?? '';
+  const DEFAULT_DINNER = '19:00';
+  const DEFAULT_BED = '23:00';
+  const dinner = log?.dinnerFinishedAt ?? DEFAULT_DINNER;
+  const bed = log?.bedTime ?? DEFAULT_BED;
 
   function parseMinutes(t: string): number {
     const [h, m] = t.split(':').map(Number);
     return h * 60 + m;
   }
+
+  const hasActualData = !!(log?.dinnerFinishedAt || log?.bedTime);
 
   // Gap analysis
   let gapMinutes: number | null = null;
@@ -112,8 +116,8 @@ function NightRoutineCard({ date }: { date: string }) {
           </div>
         )}
 
-        {!dinner && !bed && (
-          <p className="text-xs text-gray-500 text-center py-1">記錄晚餐完成與就寢時間，追蹤內臟脂肪代謝習慣</p>
+        {!hasActualData && (
+          <p className="text-xs text-gray-500 text-center py-1">以預設時間（晚餐 19:00 / 就寢 23:00）顯示，調整後自動儲存</p>
         )}
       </CardContent>
     </Card>
