@@ -73,41 +73,43 @@ function NightRoutineCard({ date }: { date: string }) {
           <span className="text-xs text-gray-500 ml-auto">對內臟脂肪代謝關鍵</span>
         </div>
       </CardHeader>
-      <CardContent className="pt-0 space-y-3">
-        {/* Time inputs */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <label className="flex items-center gap-1.5 text-xs text-gray-400">
-              <UtensilsCrossed size={12} className="text-orange-400" />
-              晚餐完成時間
-            </label>
-            <input
-              type="time"
-              value={dinner}
-              onChange={(e) => upsertDailyLog({ date, dinnerFinishedAt: e.target.value, bedTime: log?.bedTime })}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white focus:outline-none focus:border-orange-400"
-            />
+      <CardContent className="pt-0 space-y-2">
+        {/* Dinner row */}
+        <div className="flex items-center justify-between px-1 py-1">
+          <div className="flex items-center gap-2">
+            <UtensilsCrossed size={14} className="text-orange-400 flex-shrink-0" />
+            <span className="text-sm text-gray-300">晚餐完成時間</span>
           </div>
-          <div className="space-y-1">
-            <label className="flex items-center gap-1.5 text-xs text-gray-400">
-              <Moon size={12} className="text-indigo-400" />
-              上床睡覺時間
-              {bedRating && (
-                <span className={`ml-1 font-semibold ${bedRatingColor}`}>{bedRating}</span>
-              )}
-            </label>
-            <input
-              type="time"
-              value={bed}
-              onChange={(e) => upsertDailyLog({ date, dinnerFinishedAt: log?.dinnerFinishedAt, bedTime: e.target.value })}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-400"
-            />
+          <input
+            type="time"
+            value={dinner}
+            onChange={(e) => upsertDailyLog({ date, dinnerFinishedAt: e.target.value, bedTime: log?.bedTime })}
+            className="w-28 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white text-center focus:outline-none focus:border-orange-400"
+          />
+        </div>
+
+        <div className="border-t border-gray-700/60 mx-1" />
+
+        {/* Bed row */}
+        <div className="flex items-center justify-between px-1 py-1">
+          <div className="flex items-center gap-2">
+            <Moon size={14} className="text-indigo-400 flex-shrink-0" />
+            <span className="text-sm text-gray-300">上床睡覺時間</span>
+            {bedRating && (
+              <span className={`text-xs font-semibold ${bedRatingColor}`}>{bedRating}</span>
+            )}
           </div>
+          <input
+            type="time"
+            value={bed}
+            onChange={(e) => upsertDailyLog({ date, dinnerFinishedAt: log?.dinnerFinishedAt, bedTime: e.target.value })}
+            className="w-28 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white text-center focus:outline-none focus:border-indigo-400"
+          />
         </div>
 
         {/* Gap result */}
         {gapMinutes !== null && (
-          <div className="px-3 py-2.5 rounded-xl bg-gray-700/50 border border-gray-600">
+          <div className="mx-1 px-3 py-2.5 rounded-xl bg-gray-700/50 border border-gray-600">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs text-gray-400">晚餐 → 就寢間距</span>
               <span className={`text-sm font-bold ${gapColor}`}>{gapLabel}</span>
@@ -117,7 +119,7 @@ function NightRoutineCard({ date }: { date: string }) {
         )}
 
         {!hasActualData && (
-          <p className="text-xs text-gray-500 text-center py-1">以預設時間（晚餐 19:00 / 就寢 23:00）顯示，調整後自動儲存</p>
+          <p className="text-xs text-gray-500 text-center pb-1">以預設時間（晚餐 19:00 / 就寢 23:00）顯示，調整後自動儲存</p>
         )}
       </CardContent>
     </Card>
