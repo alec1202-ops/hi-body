@@ -14,6 +14,7 @@ import type {
   WaterEntry,
   SupplementEntry,
   SupplementTemplate,
+  DailyLog,
 } from '@/types';
 import * as db from './db';
 
@@ -28,6 +29,7 @@ interface AppState {
   stravaTokens: StravaTokens | null;
   supplementEntries: SupplementEntry[];
   supplementTemplates: SupplementTemplate[];
+  dailyLogs: DailyLog[];
   userId: string | null; // current logged-in user
   tdeeReminderDismissedWeight: number | null; // weight at time of last dismissal
 
@@ -67,6 +69,9 @@ interface AppState {
   updateSupplementTemplate: (id: string, tpl: Partial<SupplementTemplate>) => void;
   deleteSupplementTemplate: (id: string) => void;
 
+  upsertDailyLog: (log: DailyLog) => void;
+  getDailyLog: (date: string) => DailyLog | undefined;
+
   dismissTdeeReminder: (atWeight: number) => void;
 
   getDailySummary: (date: string) => DailySummary;
@@ -101,6 +106,7 @@ export const useAppStore = create<AppState>()(
       stravaTokens: null,
       supplementEntries: [],
       supplementTemplates: [],
+      dailyLogs: [],
       userId: null,
       tdeeReminderDismissedWeight: null,
 
@@ -175,6 +181,7 @@ export const useAppStore = create<AppState>()(
         waterEntries: [],
         supplementEntries: [],
         supplementTemplates: [],
+        dailyLogs: [],
         stravaTokens: null,
         userId: null,
         tdeeReminderDismissedWeight: null,
@@ -316,6 +323,16 @@ export const useAppStore = create<AppState>()(
         set((s) => ({ supplementTemplates: s.supplementTemplates.filter((t) => t.id !== id) }));
         db.deleteSupplementTemplateDb(id);
       },
+
+      upsertDailyLog: (log) =>
+        set((s) => ({
+          dailyLogs: [
+            ...s.dailyLogs.filter((l) => l.date !== log.date),
+            { ...s.dailyLogs.find((l) => l.date === log.date), ...log },
+          ],
+        })),
+
+      getDailyLog: (date) => get().dailyLogs.find((l) => l.date === date),
 
       dismissTdeeReminder: (atWeight) => set({ tdeeReminderDismissedWeight: atWeight }),
 

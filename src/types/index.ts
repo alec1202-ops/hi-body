@@ -152,6 +152,12 @@ export interface SupplementTemplate {
   createdAt: string;
 }
 
+export interface DailyLog {
+  date: string;           // YYYY-MM-DD
+  dinnerFinishedAt?: string;  // HH:mm — 晚餐完成進食時間
+  bedTime?: string;           // HH:mm — 上床睡覺時間
+}
+
 export interface StravaTokens {
   accessToken: string;
   refreshToken: string;

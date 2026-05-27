@@ -3,13 +3,122 @@
 import { useState } from 'react';
 import { format, addDays, subDays } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Flame, Zap, Scale, Plus, Droplets, Utensils, TrendingUp, Minus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flame, Zap, Scale, Plus, Droplets, Utensils, TrendingUp, Minus, Moon, UtensilsCrossed } from 'lucide-react';
 import Link from 'next/link';
 import { useAppStore, calculateTDEE, getStreak, linearRegressionMonthlyChange, getProteinCalorieFactor } from '@/lib/store';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { ProgressRing } from '@/components/ui/ProgressRing';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+
+// ─── Night Routine Card ────────────────────────────────────────────────────────
+function NightRoutineCard({ date }: { date: string }) {
+  const { getDailyLog, upsertDailyLog } = useAppStore();
+  const log = getDailyLog(date);
+
+  const dinner = log?.dinnerFinishedAt ?? '';
+  const bed = log?.bedTime ?? '';
+
+  function parseMinutes(t: string): number {
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+  }
+
+  // Gap analysis
+  let gapMinutes: number | null = null;
+  let gapLabel = '';
+  let gapColor = '';
+  let gapInsight = '';
+  if (dinner && bed) {
+    let g = parseMinutes(bed) - parseMinutes(dinner);
+    if (g < 0) g += 24 * 60; // crossed midnight
+    gapMinutes = g;
+    const h = Math.floor(g / 60);
+    const m = g % 60;
+    gapLabel = m > 0 ? `${h} 小時 ${m} 分` : `${h} 小時`;
+    if (g < 120) {
+      gapColor = 'text-red-400';
+      gapInsight = '進食後不足 2 小時就寢，腸胃仍在工作，內臟脂肪代謝效率低';
+    } else if (g < 180) {
+      gapColor = 'text-yellow-400';
+      gapInsight = '差一點！建議晚餐後至少 3 小時再入睡，效果更佳';
+    } else {
+      gapColor = 'text-emerald-400';
+      gapInsight = '間距充足，空腹入睡有助啟動脂肪燃燒與內臟脂肪代謝 🔥';
+    }
+  }
+
+  // Bedtime rating
+  let bedRating = '';
+  let bedRatingColor = '';
+  if (bed) {
+    const bm = parseMinutes(bed);
+    const bm24 = bm < 360 ? bm + 24 * 60 : bm; // treat 00:xx–05:xx as past midnight
+    if (bm24 <= 22 * 60) { bedRating = '極佳'; bedRatingColor = 'text-emerald-400'; }
+    else if (bm24 <= 23 * 60) { bedRating = '良好'; bedRatingColor = 'text-emerald-400'; }
+    else if (bm24 <= 24 * 60) { bedRating = '可接受'; bedRatingColor = 'text-yellow-400'; }
+    else { bedRating = '偏晚'; bedRatingColor = 'text-red-400'; }
+  }
+
+  return (
+    <Card className="mb-4">
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Moon size={14} className="text-indigo-400" />
+          <h2 className="text-sm font-semibold text-gray-200">晚餐 &amp; 就寢時間</h2>
+          <span className="text-xs text-gray-500 ml-auto">對內臟脂肪代謝關鍵</span>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0 space-y-3">
+        {/* Time inputs */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <label className="flex items-center gap-1.5 text-xs text-gray-400">
+              <UtensilsCrossed size={12} className="text-orange-400" />
+              晚餐完成時間
+            </label>
+            <input
+              type="time"
+              value={dinner}
+              onChange={(e) => upsertDailyLog({ date, dinnerFinishedAt: e.target.value, bedTime: log?.bedTime })}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white focus:outline-none focus:border-orange-400"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="flex items-center gap-1.5 text-xs text-gray-400">
+              <Moon size={12} className="text-indigo-400" />
+              上床睡覺時間
+              {bedRating && (
+                <span className={`ml-1 font-semibold ${bedRatingColor}`}>{bedRating}</span>
+              )}
+            </label>
+            <input
+              type="time"
+              value={bed}
+              onChange={(e) => upsertDailyLog({ date, dinnerFinishedAt: log?.dinnerFinishedAt, bedTime: e.target.value })}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-400"
+            />
+          </div>
+        </div>
+
+        {/* Gap result */}
+        {gapMinutes !== null && (
+          <div className="px-3 py-2.5 rounded-xl bg-gray-700/50 border border-gray-600">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs text-gray-400">晚餐 → 就寢間距</span>
+              <span className={`text-sm font-bold ${gapColor}`}>{gapLabel}</span>
+            </div>
+            <p className="text-xs text-gray-400">{gapInsight}</p>
+          </div>
+        )}
+
+        {!dinner && !bed && (
+          <p className="text-xs text-gray-500 text-center py-1">記錄晚餐完成與就寢時間，追蹤內臟脂肪代謝習慣</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 function NutrientBar({ label, value, target, color }: { label: string; value: number; target: number; color: string }) {
   const pct = target > 0 ? Math.min(100, (value / target) * 100) : 0;
@@ -457,6 +566,9 @@ export default function DashboardPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Night routine */}
+      <NightRoutineCard date={date} />
     </div>
   );
 }
