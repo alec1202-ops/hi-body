@@ -155,6 +155,7 @@ export interface SupplementTemplate {
 export interface DailyLog {
   date: string;           // YYYY-MM-DD
   dinnerFinishedAt?: string;  // HH:mm — 晚餐完成進食時間
+  skipDinner?: boolean;       // true = 沒吃晚餐
   bedTime?: string;           // HH:mm — 上床睡覺時間
 }
 

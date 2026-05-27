@@ -26,16 +26,20 @@ function NightRoutineCard({ date }: { date: string }) {
     return h * 60 + m;
   }
 
-  const hasActualData = !!(log?.dinnerFinishedAt || log?.bedTime);
+  const skipDinner = log?.skipDinner ?? false;
+  const hasActualData = !!(log?.dinnerFinishedAt || log?.bedTime || log?.skipDinner);
 
   // Gap analysis
   let gapMinutes: number | null = null;
   let gapLabel = '';
   let gapColor = '';
   let gapInsight = '';
-  if (dinner && bed) {
+  if (skipDinner && bed) {
+    gapColor = 'text-emerald-400';
+    gapInsight = '今天沒吃晚餐，空腹時間長，對內臟脂肪代謝最有利 💪';
+  } else if (dinner && bed) {
     let g = parseMinutes(bed) - parseMinutes(dinner);
-    if (g < 0) g += 24 * 60; // crossed midnight
+    if (g < 0) g += 24 * 60;
     gapMinutes = g;
     const h = Math.floor(g / 60);
     const m = g % 60;
@@ -80,12 +84,26 @@ function NightRoutineCard({ date }: { date: string }) {
             <UtensilsCrossed size={14} className="text-orange-400 flex-shrink-0" />
             <span className="text-sm text-gray-300">晚餐完成時間</span>
           </div>
-          <input
-            type="time"
-            value={dinner}
-            onChange={(e) => upsertDailyLog({ date, dinnerFinishedAt: e.target.value, bedTime: log?.bedTime })}
-            className="w-28 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white text-center focus:outline-none focus:border-orange-400"
-          />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => upsertDailyLog({ date, skipDinner: !skipDinner, dinnerFinishedAt: skipDinner ? log?.dinnerFinishedAt : undefined, bedTime: log?.bedTime })}
+              className={`px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
+                skipDinner
+                  ? 'bg-emerald-900/40 border-emerald-700 text-emerald-400'
+                  : 'bg-gray-700/50 border-gray-600 text-gray-500 hover:text-gray-300'
+              }`}
+            >
+              沒吃
+            </button>
+            {!skipDinner && (
+              <input
+                type="time"
+                value={dinner}
+                onChange={(e) => upsertDailyLog({ date, dinnerFinishedAt: e.target.value, skipDinner: false, bedTime: log?.bedTime })}
+                className="w-28 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white text-center focus:outline-none focus:border-orange-400"
+              />
+            )}
+          </div>
         </div>
 
         <div className="border-t border-gray-700/60 mx-1" />
@@ -108,12 +126,14 @@ function NightRoutineCard({ date }: { date: string }) {
         </div>
 
         {/* Gap result */}
-        {gapMinutes !== null && (
+        {(gapMinutes !== null || (skipDinner && bed)) && (
           <div className="mx-1 px-3 py-2.5 rounded-xl bg-gray-700/50 border border-gray-600">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-gray-400">晚餐 → 就寢間距</span>
-              <span className={`text-sm font-bold ${gapColor}`}>{gapLabel}</span>
-            </div>
+            {!skipDinner && (
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-gray-400">晚餐 → 就寢間距</span>
+                <span className={`text-sm font-bold ${gapColor}`}>{gapLabel}</span>
+              </div>
+            )}
             <p className="text-xs text-gray-400">{gapInsight}</p>
           </div>
         )}

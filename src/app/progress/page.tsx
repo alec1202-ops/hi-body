@@ -400,20 +400,20 @@ function SleepHabitChart({ days, period }: { days: number; period: Period }) {
 
   const data = dateList.map((date) => {
     const log = logMap.get(date);
-    const dinnerVal = timeToDecimal(log?.dinnerFinishedAt ?? DEFAULT_DINNER);
+    const skipDinner = log?.skipDinner ?? false;
+    const dinnerVal = skipDinner ? null : timeToDecimal(log?.dinnerFinishedAt ?? DEFAULT_DINNER);
     const bedVal = timeToDecimal(log?.bedTime ?? DEFAULT_BED);
-    const gap = bedVal - dinnerVal;
-    const isDefault = !log?.dinnerFinishedAt && !log?.bedTime;
+    const gap = dinnerVal !== null ? bedVal - dinnerVal : null;
+    const isDefault = !log?.dinnerFinishedAt && !log?.bedTime && !log?.skipDinner;
     return {
       date,
       label: days <= 14
         ? format(parseISO(date), 'M/d (EEE)', { locale: zhTW })
-        : days <= 31
-        ? format(parseISO(date), 'M/d')
         : format(parseISO(date), 'M/d'),
       dinner: dinnerVal,
       bed: bedVal,
-      gap: parseFloat(gap.toFixed(2)),
+      gap,
+      skipDinner,
       isDefault,
     };
   });
@@ -421,12 +421,12 @@ function SleepHabitChart({ days, period }: { days: number; period: Period }) {
   // Summary stats
   const actualDays = data.filter((d) => !d.isDefault);
   const avgGap = actualDays.length
-    ? actualDays.reduce((s, d) => s + d.gap, 0) / actualDays.length
+    ? actualDays.reduce((s, d) => s + (d.gap ?? (d.skipDinner ? 8 : 0)), 0) / actualDays.length
     : timeToDecimal(DEFAULT_BED) - timeToDecimal(DEFAULT_DINNER);
-  const goodDays = actualDays.filter((d) => d.gap >= 3).length;
+  const goodDays = actualDays.filter((d) => d.skipDinner || (d.gap !== null && d.gap >= 3)).length;
 
   // Y-axis domain: auto-fit from min dinner to max bed
-  const allDinner = data.map((d) => d.dinner);
+  const allDinner = data.map((d) => d.dinner ?? timeToDecimal(DEFAULT_DINNER));
   const allBed = data.map((d) => d.bed);
   const yMin = Math.floor(Math.min(...allDinner)) - 0.5;
   const yMax = Math.ceil(Math.max(...allBed)) + 0.5;
@@ -442,7 +442,9 @@ function SleepHabitChart({ days, period }: { days: number; period: Period }) {
     return (
       <div className="bg-gray-800 border border-gray-600 rounded-xl px-3 py-2 text-xs space-y-1">
         <p className="text-gray-300 font-medium">{label}{d?.isDefault ? ' (預設)' : ''}</p>
+        {d?.skipDinner && <p className="text-emerald-400">🚫 沒吃晚餐</p>}
         {payload.map((p) => (
+          p.name === '晚餐完成' && d?.skipDinner ? null :
           <p key={p.name} style={{ color: p.color }}>
             {p.name === '晚餐完成' ? '🍽 ' : '🌙 '}
             {p.name}: {decimalToTime(p.value)}
