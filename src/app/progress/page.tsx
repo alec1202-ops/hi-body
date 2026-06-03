@@ -365,6 +365,22 @@ function GarminImportModal({
                   </div>
                 ))}
               </div>
+
+              {/* Bottom confirm button — large, always reachable by thumb */}
+              <button
+                onClick={handleConfirm}
+                className="mt-4 w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-bold text-sm rounded-2xl transition-colors"
+              >
+                確認匯入 {sortedEntries.length} 筆資料
+              </button>
+            </div>
+          )}
+
+          {/* If AI returned nothing after analysis, offer retry hint */}
+          {!loading && previews.length > 0 && sortedEntries.length === 0 && !error && (
+            <div className="mt-2 px-3 py-3 bg-yellow-900/30 border border-yellow-700/50 rounded-xl">
+              <p className="text-xs text-yellow-300 font-medium mb-1">⚠️ 未辨識到體重資料</p>
+              <p className="text-xs text-gray-400">請確認截圖中有清晰的日期與體重數值，或嘗試換一張截圖。</p>
             </div>
           )}
         </div>
