@@ -45,23 +45,29 @@ function ShareModal({ meal, onClose }: { meal: FavoriteMeal; onClose: () => void
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center" onClick={onClose}>
-      <div className="bg-gray-800 w-full max-w-[480px] rounded-t-3xl p-5" onClick={(e) => e.stopPropagation()}>
-        <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-4" />
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-bold text-white">分享「{meal.name}」</h2>
-          <button onClick={onClose} className="p-1 text-gray-400"><X size={18} /></button>
+    <div className="fixed inset-0 z-50 flex flex-col">
+      <div className="h-full w-full max-w-[480px] mx-auto flex flex-col bg-gray-800">
+        {/* Header */}
+        <div className="px-5 pt-12 pb-3 flex-shrink-0 border-b border-gray-700/50 bg-gray-800">
+          <div className="flex items-center justify-between">
+            <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-200">關閉</button>
+            <h2 className="text-base font-bold text-white">分享「{meal.name}」</h2>
+            <div className="w-10" />
+          </div>
         </div>
-        <p className="text-xs text-gray-400 mb-3">複製下方分享碼，傳給朋友貼入「匯入餐點」即可加到他們的常用清單。</p>
-        <div className="bg-gray-700 rounded-xl p-3 mb-4">
-          <p className="text-[11px] text-gray-300 break-all font-mono select-all">{code}</p>
+        {/* Body */}
+        <div className="overflow-y-auto flex-1 px-5 py-5">
+          <p className="text-xs text-gray-400 mb-3">複製下方分享碼，傳給朋友貼入「匯入餐點」即可加到他們的常用清單。</p>
+          <div className="bg-gray-700 rounded-xl p-3 mb-4">
+            <p className="text-[11px] text-gray-300 break-all font-mono select-all">{code}</p>
+          </div>
+          <button
+            onClick={copy}
+            className={`w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-colors ${copied ? 'bg-emerald-500 text-white' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'}`}
+          >
+            {copied ? <><Check size={16} /> 已複製！</> : <><Copy size={16} /> 複製分享碼</>}
+          </button>
         </div>
-        <button
-          onClick={copy}
-          className={`w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-colors ${copied ? 'bg-emerald-500 text-white' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'}`}
-        >
-          {copied ? <><Check size={16} /> 已複製！</> : <><Copy size={16} /> 複製分享碼</>}
-        </button>
       </div>
     </div>
   );
@@ -87,42 +93,48 @@ function ImportModal({ onImport, onClose }: { onImport: (meal: Omit<FavoriteMeal
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center" onClick={onClose}>
-      <div className="bg-gray-800 w-full max-w-[480px] rounded-t-3xl p-5" onClick={(e) => e.stopPropagation()}>
-        <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-4" />
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-bold text-white">匯入分享餐點</h2>
-          <button onClick={onClose} className="p-1 text-gray-400"><X size={18} /></button>
+    <div className="fixed inset-0 z-50 flex flex-col">
+      <div className="h-full w-full max-w-[480px] mx-auto flex flex-col bg-gray-800">
+        {/* Header */}
+        <div className="px-5 pt-12 pb-3 flex-shrink-0 border-b border-gray-700/50 bg-gray-800">
+          <div className="flex items-center justify-between">
+            <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-200">取消</button>
+            <h2 className="text-base font-bold text-white">匯入分享餐點</h2>
+            <div className="w-10" />
+          </div>
         </div>
-        <textarea
-          placeholder="貼上朋友傳來的分享碼..."
-          value={code}
-          onChange={(e) => { setCode(e.target.value); setPreview(null); setError(''); }}
-          rows={4}
-          className="w-full px-3 py-2 border border-gray-600 rounded-xl text-xs font-mono focus:outline-none focus:border-emerald-400 resize-none mb-3"
-        />
-        {error && <p className="text-xs text-red-400 mb-2">{error}</p>}
+        {/* Body */}
+        <div className="overflow-y-auto flex-1 px-5 py-5">
+          <textarea
+            placeholder="貼上朋友傳來的分享碼..."
+            value={code}
+            onChange={(e) => { setCode(e.target.value); setPreview(null); setError(''); }}
+            rows={4}
+            className="w-full px-3 py-2 border border-gray-600 rounded-xl text-xs font-mono focus:outline-none focus:border-emerald-400 resize-none mb-3"
+          />
+          {error && <p className="text-xs text-red-400 mb-2">{error}</p>}
 
-        {!preview ? (
-          <Button onClick={handleParse} disabled={!code.trim()} className="w-full">解析分享碼</Button>
-        ) : (
-          <div className="space-y-3">
-            <div className="bg-emerald-950/40 border border-emerald-800 rounded-xl p-3">
-              <p className="text-sm font-semibold text-gray-100">{preview.name}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{preview.servingSize}</p>
-              <div className="flex gap-3 mt-1.5 text-xs">
-                <span className="text-orange-400 font-semibold">{preview.nutrition.calories} kcal</span>
-                <span className="text-indigo-400">蛋白 {preview.nutrition.protein}g</span>
-                <span className="text-amber-400">碳水 {preview.nutrition.carbs}g</span>
-                <span className="text-pink-400">脂肪 {preview.nutrition.fat}g</span>
+          {!preview ? (
+            <Button onClick={handleParse} disabled={!code.trim()} className="w-full">解析分享碼</Button>
+          ) : (
+            <div className="space-y-3">
+              <div className="bg-emerald-950/40 border border-emerald-800 rounded-xl p-3">
+                <p className="text-sm font-semibold text-gray-100">{preview.name}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{preview.servingSize}</p>
+                <div className="flex gap-3 mt-1.5 text-xs">
+                  <span className="text-orange-400 font-semibold">{preview.nutrition.calories} kcal</span>
+                  <span className="text-indigo-400">蛋白 {preview.nutrition.protein}g</span>
+                  <span className="text-amber-400">碳水 {preview.nutrition.carbs}g</span>
+                  <span className="text-pink-400">脂肪 {preview.nutrition.fat}g</span>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={() => setPreview(null)} className="flex-1">重新輸入</Button>
+                <Button onClick={handleImport} className="flex-1">✅ 加入常用餐點</Button>
               </div>
             </div>
-            <div className="flex gap-2">
-              <Button variant="secondary" onClick={() => setPreview(null)} className="flex-1">重新輸入</Button>
-              <Button onClick={handleImport} className="flex-1">✅ 加入常用餐點</Button>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
@@ -188,12 +200,13 @@ function MealForm({ initial, onSave, onClose }: MealFormProps) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center" onClick={onClose}>
-      <div className="bg-gray-800 w-full max-w-[480px] rounded-t-3xl max-h-[90dvh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-        <div className="overflow-y-auto flex-1 min-h-0 p-5 pb-0" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-          <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-4" />
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-white">{initial ? '編輯餐點' : '新增常用餐點'}</h2>
+    <div className="fixed inset-0 z-50 flex flex-col">
+      <div className="h-full w-full max-w-[480px] mx-auto flex flex-col bg-gray-800">
+        {/* Header */}
+        <div className="px-5 pt-12 pb-3 flex-shrink-0 border-b border-gray-700/50 bg-gray-800">
+          <div className="flex items-center justify-between">
+            <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-200">取消</button>
+            <h2 className="text-base font-bold text-white">{initial ? '編輯餐點' : '新增常用餐點'}</h2>
             <button
               onClick={handleSubmit}
               className="px-4 py-1.5 bg-emerald-500 text-white text-sm font-semibold rounded-xl"
@@ -201,6 +214,8 @@ function MealForm({ initial, onSave, onClose }: MealFormProps) {
               ✅ 儲存
             </button>
           </div>
+        </div>
+        <div className="overflow-y-auto flex-1 px-5 py-4">
 
           <div className="space-y-3 mb-4">
             <div className="flex gap-2">

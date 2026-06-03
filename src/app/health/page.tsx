@@ -149,12 +149,11 @@ function ReportForm({ initial, onSave, onClose }: {
   const totalExtracted = fileStatuses.filter((s) => s.status === 'done').reduce((sum, s) => sum + (s.count ?? 0), 0);
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center" onClick={onClose}>
-      <div className="bg-gray-800 w-full max-w-[480px] rounded-t-3xl max-h-[92dvh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex flex-col">
+      <div className="h-full w-full max-w-[480px] mx-auto flex flex-col bg-gray-800">
 
         {/* ── Fixed header ── */}
-        <div className="px-5 pt-4 pb-3 flex-shrink-0">
-          <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-3" />
+        <div className="px-5 pt-12 pb-3 flex-shrink-0 border-b border-gray-700/50 bg-gray-800">
           <div className="flex items-center justify-between">
             <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-200">取消</button>
             <h2 className="text-base font-bold text-white">{initial ? '編輯健康報告' : '新增健康報告'}</h2>
@@ -165,7 +164,7 @@ function ReportForm({ initial, onSave, onClose }: {
         </div>
 
         {/* ── Scrollable body ── */}
-        <div className="overflow-y-auto flex-1 min-h-0 px-5 pb-6" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+        <div className="overflow-y-auto flex-1 px-5 pb-6">
 
           {/* Date */}
           <div className="mb-4">

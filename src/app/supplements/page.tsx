@@ -93,14 +93,12 @@ function AddForm({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex flex-col">
       <div
-        className="bg-gray-800 w-full max-w-[480px] rounded-t-3xl max-h-[90dvh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
+        className="h-full w-full max-w-[480px] mx-auto flex flex-col bg-gray-800"
       >
         {/* ── Fixed header ── */}
-        <div className="px-5 pt-4 pb-3 flex-shrink-0">
-          <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-3" />
+        <div className="px-5 pt-12 pb-3 flex-shrink-0 border-b border-gray-700/50 bg-gray-800">
           <div className="flex items-center justify-between">
             <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-200">取消</button>
             <div className="flex items-center gap-2">
@@ -124,7 +122,7 @@ function AddForm({
         </div>
 
         {/* ── Scrollable body ── */}
-        <div className="overflow-y-auto flex-1 min-h-0 px-5 pb-8" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+        <div className="overflow-y-auto flex-1 px-5 pb-8">
 
         {/* AI camera section */}
         {showCamera && (
@@ -254,20 +252,24 @@ function EditTemplateSheet({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center" onClick={onClose}>
-      <div className="bg-gray-800 w-full max-w-[480px] rounded-t-3xl p-5" onClick={(e) => e.stopPropagation()}>
-        <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-4" />
-        <div className="flex items-center justify-between mb-4">
-          <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-200">取消</button>
-          <h2 className="text-base font-bold text-white">編輯常用補充品</h2>
-          <button
-            onClick={handleSave}
-            disabled={!name.trim() || !dose}
-            className="px-4 py-1.5 bg-emerald-500 disabled:bg-gray-600 text-white text-sm font-semibold rounded-xl"
-          >
-            儲存
-          </button>
+    <div className="fixed inset-0 z-50 flex flex-col">
+      <div className="h-full w-full max-w-[480px] mx-auto flex flex-col bg-gray-800">
+        {/* Header */}
+        <div className="px-5 pt-12 pb-3 flex-shrink-0 border-b border-gray-700/50 bg-gray-800">
+          <div className="flex items-center justify-between">
+            <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-200">取消</button>
+            <h2 className="text-base font-bold text-white">編輯常用補充品</h2>
+            <button
+              onClick={handleSave}
+              disabled={!name.trim() || !dose}
+              className="px-4 py-1.5 bg-emerald-500 disabled:bg-gray-600 text-white text-sm font-semibold rounded-xl"
+            >
+              儲存
+            </button>
+          </div>
         </div>
+        {/* Body */}
+        <div className="overflow-y-auto flex-1 px-5 py-4">
         <div className="space-y-3">
           <input
             type="text"
@@ -299,6 +301,7 @@ function EditTemplateSheet({
             onChange={(e) => setNotes(e.target.value)}
             className="w-full px-3 py-2.5 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-400"
           />
+        </div>
         </div>
       </div>
     </div>
