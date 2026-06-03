@@ -213,6 +213,49 @@ function GarminImportModal({
   const [lastAddedCount, setLastAddedCount] = useState(0);
   const fileRef = React.useRef<HTMLInputElement>(null);
 
+  // Convert any image (including HEIC) to JPEG base64 via canvas
+  async function fileToJpegBase64(file: File): Promise<{ base64: string; mimeType: string; previewUrl: string }> {
+    const isHeic = file.type === 'image/heic' || file.type === 'image/heif'
+      || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif');
+
+    if (isHeic) {
+      return new Promise((resolve, reject) => {
+        const objectUrl = URL.createObjectURL(file);
+        const img = new window.Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) { reject(new Error('Canvas not available')); return; }
+          ctx.drawImage(img, 0, 0);
+          URL.revokeObjectURL(objectUrl);
+          canvas.toBlob((blob) => {
+            if (!blob) { reject(new Error('Conversion failed')); return; }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const dataUrl = e.target!.result as string;
+              resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg', previewUrl: dataUrl });
+            };
+            reader.readAsDataURL(blob);
+          }, 'image/jpeg', 0.92);
+        };
+        img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('HEIC decode failed')); };
+        img.src = objectUrl;
+      });
+    }
+
+    // Standard formats
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target!.result as string;
+        resolve({ base64: dataUrl.split(',')[1], mimeType: file.type || 'image/jpeg', previewUrl: dataUrl });
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
   async function processFiles(files: File[]) {
     if (!files.length) return;
     setLoading(true);
@@ -221,18 +264,20 @@ function GarminImportModal({
     let newCount = 0;
 
     for (const file of files) {
-      const dataUrl: string = await new Promise((res) => {
-        const reader = new FileReader();
-        reader.onload = (e) => res(e.target!.result as string);
-        reader.readAsDataURL(file);
-      });
-      setPreviews((prev) => [...prev, dataUrl]);
+      let base64: string, mimeType: string, previewUrl: string;
+      try {
+        ({ base64, mimeType, previewUrl } = await fileToJpegBase64(file));
+      } catch {
+        setError(`無法讀取 ${file.name}，請先在相簿匯出為 JPEG/PNG`);
+        continue;
+      }
+      setPreviews((prev) => [...prev, previewUrl]);
 
       try {
         const resp = await fetch('/api/extract-weight', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: dataUrl.split(',')[1], mimeType: file.type }),
+          body: JSON.stringify({ image: base64, mimeType }),
         });
         const data = await resp.json();
         if (data.entries?.length) {
