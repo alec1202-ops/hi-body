@@ -9,7 +9,8 @@ import {
   LineChart, Line,
 } from 'recharts';
 import { Scale, Plus, Trash2, Target, ChevronDown, ChevronUp, Upload, X, Check, Loader2, Moon, UtensilsCrossed } from 'lucide-react';
-import { useAppStore, estimateWeightChange, linearRegressionMonthlyChange, getProteinCalorieFactor } from '@/lib/store';
+import { useAppStore, estimateWeightChange, linearRegressionMonthlyChange, getProteinCalorieFactor, build12MonthProjection } from '@/lib/store';
+import { ComposedChart, Scatter } from 'recharts';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { PhotoUpload } from '@/components/ui/PhotoUpload';
@@ -372,6 +373,174 @@ function GarminImportModal({
   );
 }
 
+// ─── 12-Month Weight Projection ───────────────────────────────────────────────
+function WeightProjectionChart({ weightEntries, targetWeight }: {
+  weightEntries: import('@/types').WeightEntry[];
+  targetWeight?: number;
+}) {
+  const proj = build12MonthProjection(weightEntries, targetWeight);
+  const sorted = [...weightEntries].sort((a, b) => a.date.localeCompare(b.date));
+
+  if (!proj) {
+    return (
+      <Card className="mb-4">
+        <CardContent className="pt-4 pb-4 text-center">
+          <Target size={32} className="text-gray-600 mx-auto mb-2" />
+          <p className="text-sm text-gray-400">需要至少 2 筆體重紀錄才能生成預測</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Build combined dataset: last 30-day actuals + 12-month projections
+  const cutoffStr = (() => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10); })();
+  const recentActual = sorted.filter((e) => e.date >= cutoffStr);
+  const displayActual = (recentActual.length >= 2 ? recentActual : sorted.slice(-10));
+
+  const chartData: { label: string; actual?: number; projected?: number }[] = [
+    ...displayActual.map((e) => ({
+      label: format(parseISO(e.date), 'M/d'),
+      actual: e.weight,
+    })),
+    // Bridge point — last actual becomes first projected
+    { label: '現在', actual: proj.currentWeight, projected: proj.currentWeight },
+    ...proj.projectedMonths.map((p) => ({
+      label: format(parseISO(p.label + '-01'), 'yy/M月'),
+      projected: p.weight,
+    })),
+  ];
+
+  const allValues = chartData.flatMap((d) => [d.actual, d.projected].filter((v): v is number => v != null));
+  const yMin = Math.floor(Math.min(...allValues, targetWeight ?? Infinity) - 1);
+  const yMax = Math.ceil(Math.max(...allValues, targetWeight ?? -Infinity) + 1);
+
+  const changeColor = proj.monthlyChange < -0.05 ? 'text-emerald-400' : proj.monthlyChange > 0.05 ? 'text-orange-400' : 'text-gray-400';
+  const r2Label = proj.r2 >= 0.8 ? '高' : proj.r2 >= 0.5 ? '中' : '低';
+  const r2Color = proj.r2 >= 0.8 ? 'text-emerald-400' : proj.r2 >= 0.5 ? 'text-yellow-400' : 'text-red-400';
+
+  return (
+    <Card className="mb-4 border-purple-800/50 bg-gradient-to-br from-purple-950/30 to-gray-900">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Target size={14} className="text-purple-400" />
+            <h2 className="text-sm font-semibold text-purple-300">12 個月體重預測</h2>
+          </div>
+          <span className="text-[10px] text-gray-500">
+            依近 {proj.usedDays} 天趨勢 · {proj.dataPoints} 筆
+          </span>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        {/* Key stats */}
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          <div className="text-center py-2 bg-gray-700/40 rounded-xl">
+            <p className={`text-base font-bold ${changeColor}`}>
+              {proj.monthlyChange > 0 ? '+' : ''}{proj.monthlyChange.toFixed(2)}
+            </p>
+            <p className="text-[10px] text-gray-400">kg / 月</p>
+          </div>
+          <div className="text-center py-2 bg-gray-700/40 rounded-xl">
+            <p className={`text-base font-bold ${changeColor}`}>
+              {(proj.monthlyChange * 12) > 0 ? '+' : ''}{(proj.monthlyChange * 12).toFixed(1)}
+            </p>
+            <p className="text-[10px] text-gray-400">kg / 年</p>
+          </div>
+          <div className="text-center py-2 bg-gray-700/40 rounded-xl">
+            <p className={`text-base font-bold ${r2Color}`}>{r2Label}</p>
+            <p className="text-[10px] text-gray-400">準確度 R²{(proj.r2 * 100).toFixed(0)}%</p>
+          </div>
+        </div>
+
+        {/* Target reach banner */}
+        {targetWeight != null && proj.targetReachMonth !== null && (
+          <div className="mb-4 px-3 py-2.5 rounded-xl bg-emerald-900/30 border border-emerald-700/50 flex items-center gap-2">
+            <span className="text-lg">🎯</span>
+            <div>
+              <p className="text-sm font-semibold text-emerald-300">
+                預計第 {proj.targetReachMonth} 個月達標
+              </p>
+              <p className="text-xs text-gray-400">
+                目標 {targetWeight} kg · 預計 {proj.projectedMonths[proj.targetReachMonth - 1]?.label}
+              </p>
+            </div>
+          </div>
+        )}
+        {targetWeight != null && proj.targetReachMonth === null && (
+          <div className="mb-4 px-3 py-2.5 rounded-xl bg-gray-700/40 border border-gray-600 flex items-center gap-2">
+            <span className="text-lg">💡</span>
+            <p className="text-xs text-gray-400">
+              依目前趨勢，12 個月內不會到達目標 {targetWeight} kg
+              {proj.projectedMonths[11] ? `（第12個月預測：${proj.projectedMonths[11].weight} kg）` : ''}
+            </p>
+          </div>
+        )}
+
+        {/* Chart */}
+        <ResponsiveContainer width="100%" height={220}>
+          <ComposedChart data={chartData} margin={{ top: 4, right: 8, left: -8, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+            <XAxis
+              dataKey="label"
+              tick={{ fontSize: 9, fill: '#9ca3af' }}
+              interval="preserveStartEnd"
+              tickLine={false}
+            />
+            <YAxis
+              domain={[yMin, yMax]}
+              tick={{ fontSize: 10, fill: '#9ca3af' }}
+              tickLine={false}
+              width={36}
+              tickFormatter={(v) => `${v}`}
+            />
+            <Tooltip
+              contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #4b5563', background: '#1f2937', color: '#f9fafb' }}
+              formatter={(value: unknown, name: unknown) => [`${value} kg`, name === 'actual' ? '實測' : '預測']}
+            />
+            {targetWeight && (
+              <ReferenceLine y={targetWeight} stroke="#10b981" strokeDasharray="5 5" strokeOpacity={0.6}
+                label={{ value: `目標 ${targetWeight}kg`, position: 'insideTopRight', fontSize: 10, fill: '#10b981' }}
+              />
+            )}
+            {/* Vertical divider at "現在" */}
+            <ReferenceLine x="現在" stroke="#6366f1" strokeDasharray="3 3" strokeOpacity={0.5} />
+            <Line
+              type="monotone"
+              dataKey="actual"
+              name="actual"
+              stroke="#10b981"
+              strokeWidth={2.5}
+              dot={{ r: 2.5, fill: '#10b981' }}
+              activeDot={{ r: 4 }}
+              connectNulls={false}
+            />
+            <Line
+              type="monotone"
+              dataKey="projected"
+              name="projected"
+              stroke="#a78bfa"
+              strokeWidth={2}
+              strokeDasharray="6 3"
+              dot={{ r: 2, fill: '#a78bfa' }}
+              activeDot={{ r: 4 }}
+              connectNulls={false}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+
+        <div className="flex items-center gap-4 mt-2 justify-center text-[10px] text-gray-500">
+          <span className="flex items-center gap-1"><span className="w-4 h-0.5 bg-emerald-400 inline-block rounded" /> 實測</span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-4 border-t-2 border-dashed border-purple-400" />
+            預測（依近 {proj.usedDays} 天趨勢）
+          </span>
+          {targetWeight && <span className="flex items-center gap-1"><span className="w-4 border-t border-dashed border-emerald-500 inline-block" /> 目標</span>}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ─── Sleep Habit Chart ────────────────────────────────────────────────────────
 const DEFAULT_DINNER = '19:00';
 const DEFAULT_BED = '23:00';
@@ -675,54 +844,8 @@ export default function ProgressPage() {
         </CardContent>
       </Card>
 
-      {/* Monthly prediction */}
-      <Card className="mb-4 border-purple-800 bg-gradient-to-br from-purple-950/40 to-indigo-950/40">
-        <CardContent className="pt-4 pb-4">
-          <div className="flex items-start justify-between">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <Target size={16} className="text-purple-400" />
-                <span className="text-sm font-semibold text-purple-300">下個月預測</span>
-                {regressionResult ? (
-                  <span className="text-[10px] bg-emerald-900/50 text-emerald-400 px-1.5 py-0.5 rounded-full">實測趨勢</span>
-                ) : (
-                  <span className="text-[10px] bg-purple-900/50 text-purple-400 px-1.5 py-0.5 rounded-full">熱量模型</span>
-                )}
-              </div>
-              {regressionResult ? (
-                <div className="text-xs text-gray-400 space-y-0.5">
-                  <p>{regressionResult.dataPoints} 筆體重紀錄 · {regressionResult.spanDays} 天跨度</p>
-                  <p>R² = {(regressionResult.r2 * 100).toFixed(0)}%
-                    {regressionResult.r2 >= 0.8 ? ' 📈 高準確度' : regressionResult.r2 >= 0.5 ? ' 中等準確度' : ' 數據較分散'}
-                  </p>
-                </div>
-              ) : (
-                <div className="text-xs text-gray-400 space-y-0.5">
-                  <p>近 7 天平均淨卡 {Math.round(avgNet)} kcal/天</p>
-                  {calorieFactor !== 7700 ? (
-                    <p className="text-purple-400">✦ 高蛋白+重訓模式 ({calorieFactor} kcal/kg)</p>
-                  ) : (
-                    highProtein && strengthDays < 2 ? (
-                      <p>蛋白 {Math.round(avgProteinG)}g/天 ·重訓 {strengthDays} 天</p>
-                    ) : null
-                  )}
-                </div>
-              )}
-            </div>
-            <div className="text-right flex-shrink-0 ml-3">
-              <p className={`text-2xl font-bold ${monthlyPrediction < 0 ? 'text-emerald-400' : monthlyPrediction > 0 ? 'text-orange-400' : 'text-gray-400'}`}>
-                {monthlyPrediction > 0 ? '+' : ''}{monthlyPrediction.toFixed(2)} kg
-              </p>
-              {latest && (
-                <p className="text-xs text-gray-500">→ {(latest.weight + monthlyPrediction).toFixed(1)} kg</p>
-              )}
-              {regressionResult && avgNet !== 0 && (
-                <p className="text-[10px] text-gray-600 mt-0.5">熱量模型: {calorieMonthlyPrediction > 0 ? '+' : ''}{calorieMonthlyPrediction.toFixed(2)} kg</p>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* 12-month projection */}
+      <WeightProjectionChart weightEntries={sortedAll} targetWeight={profile?.targetWeight} />
 
       {/* Body Weight Chart */}
       <Card className="mb-4">

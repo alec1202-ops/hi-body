@@ -529,3 +529,104 @@ export function getProteinCalorieFactor(
   const factor = (highProtein && strengthDays >= 2) ? 8500 : 7700;
   return { factor, highProtein, strengthDays, avgProteinG };
 }
+
+/**
+ * Build a 12-month weight projection using the last 30 days of weight data.
+ * Falls back to all available data if fewer than 3 entries exist in the last 30 days.
+ * Returns null if insufficient data.
+ */
+export interface WeightProjection {
+  slope: number;          // kg/day
+  monthlyChange: number;  // kg/month
+  r2: number;
+  dataPoints: number;
+  spanDays: number;
+  usedDays: number;       // window actually used (30 or all)
+  currentWeight: number;
+  projectedMonths: {
+    month: number;        // 1–12
+    label: string;        // e.g. "2026-07"
+    weight: number;
+  }[];
+  targetReachMonth: number | null; // null if never reached in 12 months
+}
+
+export function build12MonthProjection(
+  weightEntries: WeightEntry[],
+  targetWeight?: number
+): WeightProjection | null {
+  const sorted = [...weightEntries].sort((a, b) => a.date.localeCompare(b.date));
+  if (sorted.length < 2) return null;
+
+  // Prefer last 30 days; widen if too few points
+  const cutoff30 = new Date();
+  cutoff30.setDate(cutoff30.getDate() - 30);
+  const cutoffStr = cutoff30.toISOString().slice(0, 10);
+  let window = sorted.filter((e) => e.date >= cutoffStr);
+  let usedDays = 30;
+  if (window.length < 3) {
+    window = sorted;
+    usedDays = Math.round(
+      (new Date(sorted[sorted.length - 1].date + 'T00:00:00').getTime() -
+        new Date(sorted[0].date + 'T00:00:00').getTime()) /
+        86400000
+    );
+  }
+  if (window.length < 2) return null;
+
+  const t0 = new Date(window[0].date + 'T00:00:00').getTime();
+  const tN = new Date(window[window.length - 1].date + 'T00:00:00').getTime();
+  const spanDays = (tN - t0) / 86400000;
+  if (spanDays < 3) return null;
+
+  const xs = window.map((e) => (new Date(e.date + 'T00:00:00').getTime() - t0) / 86400000);
+  const ys = window.map((e) => e.weight);
+  const n = xs.length;
+  const sumX = xs.reduce((a, b) => a + b, 0);
+  const sumY = ys.reduce((a, b) => a + b, 0);
+  const sumXY = xs.reduce((s, x, i) => s + x * ys[i], 0);
+  const sumX2 = xs.reduce((s, x) => s + x * x, 0);
+  const denom = n * sumX2 - sumX * sumX;
+  if (Math.abs(denom) < 1e-10) return null;
+
+  const slope = (n * sumXY - sumX * sumY) / denom; // kg/day
+  const intercept = (sumY - slope * sumX) / n;
+  const yMean = sumY / n;
+  const ssTot = ys.reduce((s, y) => s + (y - yMean) ** 2, 0);
+  const ssRes = ys.reduce((s, y, i) => s + (y - (slope * xs[i] + intercept)) ** 2, 0);
+  const r2 = ssTot > 0 ? Math.max(0, 1 - ssRes / ssTot) : 0;
+
+  const currentWeight = sorted[sorted.length - 1].weight;
+  const today = new Date();
+
+  const projectedMonths = Array.from({ length: 12 }, (_, i) => {
+    const m = i + 1;
+    const futureDate = new Date(today);
+    futureDate.setMonth(futureDate.getMonth() + m);
+    const label = `${futureDate.getFullYear()}-${String(futureDate.getMonth() + 1).padStart(2, '0')}`;
+    const weight = parseFloat((currentWeight + slope * 30 * m).toFixed(1));
+    return { month: m, label, weight };
+  });
+
+  // Find which month target weight is first reached
+  let targetReachMonth: number | null = null;
+  if (targetWeight != null) {
+    const going_down = slope < 0;
+    for (const p of projectedMonths) {
+      if (going_down && p.weight <= targetWeight) { targetReachMonth = p.month; break; }
+      if (!going_down && p.weight >= targetWeight) { targetReachMonth = p.month; break; }
+    }
+  }
+
+  return {
+    slope,
+    monthlyChange: slope * 30,
+    r2,
+    dataPoints: n,
+    spanDays: Math.round(spanDays),
+    usedDays,
+    currentWeight,
+    projectedMonths,
+    targetReachMonth,
+  };
+}
