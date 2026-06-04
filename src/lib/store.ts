@@ -579,8 +579,35 @@ export function build12MonthProjection(
   const spanDays = (tN - t0) / 86400000;
   if (spanDays < 3) return null;
 
-  const xs = window.map((e) => (new Date(e.date + 'T00:00:00').getTime() - t0) / 86400000);
-  const ys = window.map((e) => e.weight);
+  // ── Weekly-average smoothing ────────────────────────────────────────────────
+  // Group raw measurements into 7-day buckets (relative to t0) and average each
+  // bucket. This eliminates day-to-day noise (water, meals, etc.) so R² reflects
+  // the actual long-term trend rather than daily fluctuation.
+  const bucketSize = 7; // days
+  const bucketMap = new Map<number, number[]>();
+  for (const e of window) {
+    const dayOffset = Math.round((new Date(e.date + 'T00:00:00').getTime() - t0) / 86400000);
+    const bucket = Math.floor(dayOffset / bucketSize);
+    if (!bucketMap.has(bucket)) bucketMap.set(bucket, []);
+    bucketMap.get(bucket)!.push(e.weight);
+  }
+  // Represent each bucket at its midpoint day
+  const weeklyPoints = Array.from(bucketMap.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(([bucket, weights]) => ({
+      x: bucket * bucketSize + bucketSize / 2,                          // mid-day of bucket
+      y: weights.reduce((s, w) => s + w, 0) / weights.length,          // avg weight
+    }));
+
+  // Fall back to raw points if smoothing leaves fewer than 2 buckets
+  const regrPoints = weeklyPoints.length >= 2 ? weeklyPoints
+    : window.map((e) => ({
+        x: (new Date(e.date + 'T00:00:00').getTime() - t0) / 86400000,
+        y: e.weight,
+      }));
+
+  const xs = regrPoints.map((p) => p.x);
+  const ys = regrPoints.map((p) => p.y);
   const n = xs.length;
   const sumX = xs.reduce((a, b) => a + b, 0);
   const sumY = ys.reduce((a, b) => a + b, 0);
