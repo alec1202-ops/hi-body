@@ -1,6 +1,7 @@
-export const APP_VERSION = '1.7.9';
-export const APP_BUILD_DATE = '2026-06-04';
+export const APP_VERSION = '1.8.0';
+export const APP_BUILD_DATE = '2026-06-09';
 // Changelog:
+// 1.8.0 (2026-06-09) — 修正總覽月預測異常跳動：改用與進度頁相同的30天窗口+週平均回歸，結果穩定一致
 // 1.7.9 (2026-06-04) — 體重預測改用週平均回歸：消除每日體重雜訊，R² 準確反映長期趨勢
 // 1.7.8 (2026-06-03) — Garmin 匯入支援 HEIC 格式：自動轉換為 JPEG 後送 AI 辨識
 // 1.7.7 (2026-06-03) — 所有 modal 改為全螢幕（從頂部展開），確保 iOS 可正常捲動內容

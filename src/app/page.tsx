@@ -5,7 +5,7 @@ import { format, addDays, subDays } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Flame, Zap, Scale, Plus, Droplets, Utensils, TrendingUp, Minus, Moon, UtensilsCrossed } from 'lucide-react';
 import Link from 'next/link';
-import { useAppStore, calculateTDEE, getStreak, linearRegressionMonthlyChange, getProteinCalorieFactor } from '@/lib/store';
+import { useAppStore, calculateTDEE, getStreak, build12MonthProjection, getProteinCalorieFactor } from '@/lib/store';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { ProgressRing } from '@/components/ui/ProgressRing';
 import { Button } from '@/components/ui/Button';
@@ -186,8 +186,9 @@ export default function DashboardPage() {
   const sortedWeights = [...weightEntries].sort((a, b) => b.date.localeCompare(a.date));
   const latestWeight = sortedWeights[0];
 
-  // Linear regression (primary model)
-  const regressionResult = linearRegressionMonthlyChange(sortedWeightsAll);
+  // 12-month projection (30-day window + weekly averaging — same as progress page)
+  const projectionResult = build12MonthProjection(sortedWeightsAll, profile?.targetWeight);
+  const regressionResult = projectionResult; // alias for display compatibility
   // Protein/strength factor for calorie model
   const { factor: calorieFactor } = getProteinCalorieFactor(foodEntries, exerciseEntries, profile);
 
