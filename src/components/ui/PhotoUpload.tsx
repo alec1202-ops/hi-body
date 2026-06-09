@@ -1,8 +1,7 @@
 'use client';
 
 import { useRef, useState, ChangeEvent } from 'react';
-import { Camera, Upload, X } from 'lucide-react';
-import { Button } from './Button';
+import { Camera, X } from 'lucide-react';
 
 interface PhotoUploadProps {
   onPhoto: (base64: string, mimeType: string, preview: string) => void;
@@ -11,19 +10,69 @@ interface PhotoUploadProps {
   label?: string;
 }
 
+/** Convert any image file (including HEIC/HEIF) to JPEG via Canvas. */
+async function fileToJpegBase64(file: File): Promise<{ base64: string; mimeType: string; previewUrl: string }> {
+  const isHeic =
+    file.type === 'image/heic' ||
+    file.type === 'image/heif' ||
+    file.name.toLowerCase().endsWith('.heic') ||
+    file.name.toLowerCase().endsWith('.heif');
+
+  if (isHeic) {
+    return new Promise((resolve, reject) => {
+      const objectUrl = URL.createObjectURL(file);
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { URL.revokeObjectURL(objectUrl); reject(new Error('Canvas not available')); return; }
+        ctx.drawImage(img, 0, 0);
+        URL.revokeObjectURL(objectUrl);
+        canvas.toBlob((blob) => {
+          if (!blob) { reject(new Error('Conversion failed')); return; }
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const dataUrl = e.target!.result as string;
+            resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg', previewUrl: dataUrl });
+          };
+          reader.readAsDataURL(blob);
+        }, 'image/jpeg', 0.92);
+      };
+      img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('HEIC decode failed')); };
+      img.src = objectUrl;
+    });
+  }
+
+  // Standard formats
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target!.result as string;
+      resolve({ base64: dataUrl.split(',')[1], mimeType: file.type || 'image/jpeg', previewUrl: dataUrl });
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 export function PhotoUpload({ onPhoto, preview, onClear, label = 'Add Photo' }: PhotoUploadProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
-  function handleFile(file: File) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result as string;
-      const base64 = result.split(',')[1];
-      const previewUrl = result;
-      onPhoto(base64, file.type, previewUrl);
-    };
-    reader.readAsDataURL(file);
+  async function handleFile(file: File) {
+    try {
+      const { base64, mimeType, previewUrl } = await fileToJpegBase64(file);
+      onPhoto(base64, mimeType, previewUrl);
+    } catch {
+      // fallback: read as-is
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result as string;
+        onPhoto(dataUrl.split(',')[1], file.type || 'image/jpeg', dataUrl);
+      };
+      reader.readAsDataURL(file);
+    }
   }
 
   function handleChange(e: ChangeEvent<HTMLInputElement>) {
@@ -35,7 +84,7 @@ export function PhotoUpload({ onPhoto, preview, onClear, label = 'Add Photo' }: 
     e.preventDefault();
     setDragging(false);
     const file = e.dataTransfer.files?.[0];
-    if (file?.type.startsWith('image/')) handleFile(file);
+    if (file?.type.startsWith('image/') || file?.name.toLowerCase().match(/\.(heic|heif)$/)) handleFile(file);
   }
 
   if (preview) {

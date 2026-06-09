@@ -103,20 +103,66 @@ function ReportForm({ initial, onSave, onClose }: {
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const dataUrl: string = await new Promise((res) => {
-        const reader = new FileReader();
-        reader.onload = (ev) => res(ev.target!.result as string);
-        reader.readAsDataURL(file);
-      });
+
+      // Convert HEIC/HEIF → JPEG via Canvas before sending to AI
+      const isHeic = file.type === 'image/heic' || file.type === 'image/heif'
+        || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif');
+
+      let base64: string;
+      let mimeType: string;
+      let previewDataUrl: string;
+
+      if (isHeic) {
+        try {
+          const result = await new Promise<{ base64: string; mimeType: string; dataUrl: string }>((resolve, reject) => {
+            const objectUrl = URL.createObjectURL(file);
+            const img = new window.Image();
+            img.onload = () => {
+              const canvas = document.createElement('canvas');
+              canvas.width = img.naturalWidth;
+              canvas.height = img.naturalHeight;
+              const ctx = canvas.getContext('2d');
+              if (!ctx) { URL.revokeObjectURL(objectUrl); reject(new Error('Canvas unavailable')); return; }
+              ctx.drawImage(img, 0, 0);
+              URL.revokeObjectURL(objectUrl);
+              canvas.toBlob((blob) => {
+                if (!blob) { reject(new Error('Blob failed')); return; }
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                  const du = e.target!.result as string;
+                  resolve({ base64: du.split(',')[1], mimeType: 'image/jpeg', dataUrl: du });
+                };
+                reader.readAsDataURL(blob);
+              }, 'image/jpeg', 0.92);
+            };
+            img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('HEIC load failed')); };
+            img.src = objectUrl;
+          });
+          base64 = result.base64;
+          mimeType = result.mimeType;
+          previewDataUrl = result.dataUrl;
+        } catch {
+          setFileStatuses((prev) => prev.map((s, idx) => idx === i ? { ...s, status: 'error' } : s));
+          continue;
+        }
+      } else {
+        previewDataUrl = await new Promise((res) => {
+          const reader = new FileReader();
+          reader.onload = (ev) => res(ev.target!.result as string);
+          reader.readAsDataURL(file);
+        });
+        base64 = previewDataUrl.split(',')[1];
+        mimeType = file.type || 'image/jpeg';
+      }
+
+      const dataUrl = previewDataUrl;
 
       // Only add image previews (not PDFs)
-      if (file.type.startsWith('image/')) {
+      if (file.type.startsWith('image/') || isHeic) {
         setPreviews((prev) => [...prev, dataUrl]);
       }
 
       try {
-        const base64 = dataUrl.split(',')[1];
-        const mimeType = file.type || 'image/jpeg';
         const res = await fetch('/api/extract-health-report', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
