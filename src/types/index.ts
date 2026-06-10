@@ -73,6 +73,13 @@ export interface WeightEntry {
   notes?: string;
 }
 
+export interface WaistEntry {
+  id: string;
+  date: string;      // YYYY-MM-DD
+  waist: number;     // cm
+  notes?: string;
+}
+
 export interface DailySummary {
   date: string;
   totalCaloriesIn: number;

@@ -14,7 +14,7 @@ import { ComposedChart, Scatter } from 'recharts';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { PhotoUpload } from '@/components/ui/PhotoUpload';
-import type { WeightEntry } from '@/types';
+import type { WeightEntry, WaistEntry } from '@/types';
 
 // ─── Period config ────────────────────────────────────────────────────────────
 type Period = '7' | '30' | '90' | '180' | '365';
@@ -770,9 +770,211 @@ function SleepHabitChart({ days, period }: { days: number; period: Period }) {
   );
 }
 
+// ─── Waist Form ───────────────────────────────────────────────────────────────
+function WaistForm({ onAdd, onClose }: { onAdd: (e: Omit<WaistEntry, 'id'>) => void; onClose: () => void }) {
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const [date, setDate] = useState(today);
+  const [waist, setWaist] = useState('');
+  const [notes, setNotes] = useState('');
+
+  function handleSubmit() {
+    const val = parseFloat(waist);
+    if (!val || val < 40 || val > 200) return;
+    onAdd({ date, waist: Math.round(val * 10) / 10, notes: notes || undefined });
+    onClose();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col">
+      <div className="h-full w-full max-w-[480px] mx-auto flex flex-col bg-gray-800">
+        <div className="px-5 pt-12 pb-3 flex-shrink-0 border-b border-gray-700/50 bg-gray-800">
+          <div className="flex items-center justify-between">
+            <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-200">取消</button>
+            <h2 className="text-base font-bold text-white">記錄腰圍</h2>
+            <button
+              onClick={handleSubmit}
+              disabled={!waist || parseFloat(waist) < 40}
+              className="px-4 py-1.5 bg-emerald-500 disabled:bg-gray-600 text-white text-sm font-semibold rounded-xl"
+            >
+              ✅ 儲存
+            </button>
+          </div>
+        </div>
+        <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+          <div>
+            <label className="text-xs text-gray-400 mb-1 block">日期</label>
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-600 rounded-xl text-sm focus:outline-none focus:border-emerald-400" />
+          </div>
+          <div>
+            <label className="text-xs text-gray-400 mb-1 block">腰圍 (cm)</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number" min={40} max={200} step={0.1}
+                value={waist} onChange={(e) => setWaist(e.target.value)}
+                placeholder="例如 82.5"
+                className="flex-1 px-3 py-2 border border-gray-600 rounded-xl text-sm focus:outline-none focus:border-emerald-400"
+              />
+              <span className="text-sm text-gray-400">cm</span>
+            </div>
+            {waist && parseFloat(waist) > 0 && (
+              <p className="text-xs mt-1.5 text-gray-500">
+                {parseFloat(waist) < 80
+                  ? '✅ 男性理想 <85cm，女性 <80cm'
+                  : parseFloat(waist) < 85
+                    ? '⚠️ 接近代謝風險值（男 85cm，女 80cm）'
+                    : '⚠️ 超過代謝風險值，建議加強運動'}
+              </p>
+            )}
+          </div>
+          <div>
+            <label className="text-xs text-gray-400 mb-1 block">備註（選填）</label>
+            <input type="text" placeholder="如：早上空腹量測" value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-600 rounded-xl text-sm focus:outline-none focus:border-emerald-400" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Waist Section (chart + log) ──────────────────────────────────────────────
+function WaistSection({ period }: { period: Period }) {
+  const { waistEntries, addWaistEntry, deleteWaistEntry } = useAppStore();
+  const [showForm, setShowForm] = useState(false);
+  const [expandLog, setExpandLog] = useState(false);
+
+  const days = parseInt(period);
+  const cutoff = format(subDays(new Date(), days - 1), 'yyyy-MM-dd');
+  const sorted = [...waistEntries].sort((a, b) => a.date.localeCompare(b.date));
+  const inPeriod = sorted.filter((e) => e.date >= cutoff);
+  const latest = sorted[sorted.length - 1];
+  const earliest = sorted[0];
+  const totalChange = latest && earliest && latest.id !== earliest.id
+    ? Math.round((latest.waist - earliest.waist) * 10) / 10 : null;
+
+  const chartData = inPeriod.map((e) => ({
+    date: format(parseISO(e.date), days <= 30 ? 'M/d' : 'M月'),
+    腰圍: e.waist,
+    fullDate: e.date,
+  }));
+
+  function handleAdd(entry: Omit<WaistEntry, 'id'>) {
+    addWaistEntry({ ...entry, id: crypto.randomUUID() });
+  }
+
+  const hasData = sorted.length > 0;
+  const riskThreshold = 85; // male, use 80 for female ideally
+
+  return (
+    <>
+      <Card className="mb-4 border-rose-800/30">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-base">📏</span>
+              <h2 className="text-sm font-semibold text-gray-200">腰圍趨勢</h2>
+              {latest && (
+                <span className="text-xs text-rose-300 font-semibold">{latest.waist} cm</span>
+              )}
+            </div>
+            <button
+              onClick={() => setShowForm(true)}
+              className="flex items-center gap-1 px-2.5 py-1 bg-rose-900/40 hover:bg-rose-800/50 border border-rose-700/40 text-rose-300 text-xs font-medium rounded-lg transition-colors"
+            >
+              <Plus size={12} /> 記錄
+            </button>
+          </div>
+          {totalChange !== null && (
+            <p className={`text-xs mt-1 ${totalChange < 0 ? 'text-emerald-400' : totalChange > 0 ? 'text-orange-400' : 'text-gray-400'}`}>
+              累計 {totalChange > 0 ? '+' : ''}{totalChange} cm
+              <span className="text-gray-500 ml-1">（{sorted.length} 筆紀錄）</span>
+            </p>
+          )}
+        </CardHeader>
+        <CardContent className="pt-0">
+          {!hasData ? (
+            <div className="h-28 flex flex-col items-center justify-center gap-2">
+              <p className="text-xs text-gray-500">尚無腰圍紀錄</p>
+              <button onClick={() => setShowForm(true)}
+                className="text-xs text-rose-400 hover:text-rose-300 underline">
+                點此新增第一筆
+              </button>
+            </div>
+          ) : inPeriod.length < 2 ? (
+            <div className="h-28 flex items-center justify-center">
+              <p className="text-xs text-gray-500">此期間資料不足，請選擇更長時間範圍</p>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={160}>
+              <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="grad-waist" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#9ca3af' }} interval="preserveStartEnd" />
+                <YAxis tick={{ fontSize: 9, fill: '#9ca3af' }} domain={['auto', 'auto']} />
+                <Tooltip
+                  contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #4b5563', background: '#1f2937', color: '#f9fafb' }}
+                  formatter={(v: unknown) => [`${v} cm`, '腰圍']}
+                />
+                <ReferenceLine y={riskThreshold} stroke="#fb923c" strokeDasharray="4 4"
+                  label={{ value: '風險值', fontSize: 9, fill: '#fb923c' }} />
+                <Area type="monotone" dataKey="腰圍" stroke="#f43f5e" strokeWidth={2}
+                  fill="url(#grad-waist)" dot={{ r: 3, fill: '#f43f5e', strokeWidth: 0 }} activeDot={{ r: 5 }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+
+          {/* Log */}
+          {hasData && (
+            <div className="mt-3 border-t border-gray-700/50 pt-3">
+              <button
+                className="flex items-center justify-between w-full mb-2"
+                onClick={() => setExpandLog(!expandLog)}
+              >
+                <span className="text-xs text-gray-400">所有紀錄</span>
+                <div className="flex items-center gap-1 text-xs text-gray-500">
+                  {sorted.length} 筆
+                  {expandLog ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                </div>
+              </button>
+              {expandLog && (
+                <div className="space-y-1 max-h-48 overflow-y-auto">
+                  {[...sorted].reverse().map((e) => (
+                    <div key={e.id} className="flex items-center justify-between py-1.5 px-2 bg-gray-700/30 rounded-lg">
+                      <div>
+                        <span className="text-xs text-gray-300">{e.date}</span>
+                        {e.notes && <span className="text-[10px] text-gray-500 ml-2">{e.notes}</span>}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-semibold text-rose-300">{e.waist} cm</span>
+                        <button onClick={() => deleteWaistEntry(e.id)} className="text-gray-600 hover:text-red-400">
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {showForm && <WaistForm onAdd={handleAdd} onClose={() => setShowForm(false)} />}
+    </>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function ProgressPage() {
   const { weightEntries, addWeightEntry, deleteWeightEntry, getDailySummary, profile, foodEntries, exerciseEntries } = useAppStore();
+
   const [showForm, setShowForm] = useState(false);
   const [showGarminImport, setShowGarminImport] = useState(false);
   const [period, setPeriod] = useState<Period>('30');
@@ -967,6 +1169,9 @@ export default function ProgressPage() {
             targetValue={22} targetLabel="理想" />
         </CardContent>
       </Card>
+
+      {/* Waist circumference */}
+      <WaistSection period={period} />
 
       {/* 7-day calorie chart */}
       <Card className="mb-4">

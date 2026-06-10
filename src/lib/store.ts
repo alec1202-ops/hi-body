@@ -8,6 +8,7 @@ import type {
   FoodEntry,
   ExerciseEntry,
   WeightEntry,
+  WaistEntry,
   DailySummary,
   StravaTokens,
   HealthReport,
@@ -30,6 +31,7 @@ interface AppState {
   supplementEntries: SupplementEntry[];
   supplementTemplates: SupplementTemplate[];
   dailyLogs: DailyLog[];
+  waistEntries: WaistEntry[];
   userId: string | null; // current logged-in user
   tdeeReminderDismissedWeight: number | null; // weight at time of last dismissal
 
@@ -72,6 +74,9 @@ interface AppState {
   upsertDailyLog: (log: DailyLog) => void;
   getDailyLog: (date: string) => DailyLog | undefined;
 
+  addWaistEntry: (entry: WaistEntry) => void;
+  deleteWaistEntry: (id: string) => void;
+
   dismissTdeeReminder: (atWeight: number) => void;
 
   getDailySummary: (date: string) => DailySummary;
@@ -107,6 +112,7 @@ export const useAppStore = create<AppState>()(
       supplementEntries: [],
       supplementTemplates: [],
       dailyLogs: [],
+      waistEntries: [],
       userId: null,
       tdeeReminderDismissedWeight: null,
 
@@ -182,6 +188,7 @@ export const useAppStore = create<AppState>()(
         supplementEntries: [],
         supplementTemplates: [],
         dailyLogs: [],
+        waistEntries: [],
         stravaTokens: null,
         userId: null,
         tdeeReminderDismissedWeight: null,
@@ -333,6 +340,9 @@ export const useAppStore = create<AppState>()(
         })),
 
       getDailyLog: (date) => get().dailyLogs.find((l) => l.date === date),
+
+      addWaistEntry: (entry) => set((s) => ({ waistEntries: [...s.waistEntries, entry] })),
+      deleteWaistEntry: (id) => set((s) => ({ waistEntries: s.waistEntries.filter((e) => e.id !== id) })),
 
       dismissTdeeReminder: (atWeight) => set({ tdeeReminderDismissedWeight: atWeight }),
 
