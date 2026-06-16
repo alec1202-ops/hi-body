@@ -213,46 +213,41 @@ function GarminImportModal({
   const [lastAddedCount, setLastAddedCount] = useState(0);
   const fileRef = React.useRef<HTMLInputElement>(null);
 
-  // Convert any image (including HEIC) to JPEG base64 via canvas
+  // Convert any image to a resized JPEG (max 1920px, 85% quality) via Canvas.
+  // This handles HEIC/HEIF conversion AND keeps payload under Vercel's 4.5 MB limit.
   async function fileToJpegBase64(file: File): Promise<{ base64: string; mimeType: string; previewUrl: string }> {
-    const isHeic = file.type === 'image/heic' || file.type === 'image/heif'
-      || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif');
+    const MAX_PX = 1920;
+    const QUALITY = 0.85;
 
-    if (isHeic) {
-      return new Promise((resolve, reject) => {
-        const objectUrl = URL.createObjectURL(file);
-        const img = new window.Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = img.naturalWidth;
-          canvas.height = img.naturalHeight;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) { reject(new Error('Canvas not available')); return; }
-          ctx.drawImage(img, 0, 0);
-          URL.revokeObjectURL(objectUrl);
-          canvas.toBlob((blob) => {
-            if (!blob) { reject(new Error('Conversion failed')); return; }
-            const reader = new FileReader();
-            reader.onload = (e) => {
-              const dataUrl = e.target!.result as string;
-              resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg', previewUrl: dataUrl });
-            };
-            reader.readAsDataURL(blob);
-          }, 'image/jpeg', 0.92);
-        };
-        img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('HEIC decode failed')); };
-        img.src = objectUrl;
-      });
-    }
-
-    // Standard formats
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const dataUrl = e.target!.result as string;
-        resolve({ base64: dataUrl.split(',')[1], mimeType: file.type || 'image/jpeg', previewUrl: dataUrl });
+    return new Promise((resolve, reject) => {
+      const objectUrl = URL.createObjectURL(file);
+      const img = new window.Image();
+      img.onload = () => {
+        let { naturalWidth: w, naturalHeight: h } = img;
+        if (w > MAX_PX || h > MAX_PX) {
+          const scale = Math.min(MAX_PX / w, MAX_PX / h);
+          w = Math.round(w * scale);
+          h = Math.round(h * scale);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { URL.revokeObjectURL(objectUrl); reject(new Error('Canvas unavailable')); return; }
+        ctx.drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(objectUrl);
+        canvas.toBlob((blob) => {
+          if (!blob) { reject(new Error('Blob conversion failed')); return; }
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const dataUrl = e.target!.result as string;
+            resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg', previewUrl: dataUrl });
+          };
+          reader.readAsDataURL(blob);
+        }, 'image/jpeg', QUALITY);
       };
-      reader.readAsDataURL(file);
+      img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error(`無法載入圖片 ${file.name}`)); };
+      img.src = objectUrl;
     });
   }
 
@@ -279,7 +274,18 @@ function GarminImportModal({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ image: base64, mimeType }),
         });
+        if (!resp.ok) {
+          const errText = await resp.text().catch(() => `HTTP ${resp.status}`);
+          setError(`API 錯誤 ${resp.status}：${errText.slice(0, 120)}`);
+          setLoading(false);
+          return;
+        }
         const data = await resp.json();
+        if (data.error) {
+          setError(`辨識失敗：${data.error}`);
+          setLoading(false);
+          return;
+        }
         if (data.entries?.length) {
           setEntryMap((prev) => {
             const next = { ...prev };
@@ -296,12 +302,14 @@ function GarminImportModal({
           });
           newCount += data.entries.length;
         }
-      } catch {
-        // continue to next file
+      } catch (err) {
+        setError(`網路錯誤：${err instanceof Error ? err.message : String(err)}`);
+        setLoading(false);
+        return;
       }
     }
 
-    if (newCount === 0) setError('未能辨識體重資料，請確認截圖包含日期和體重數值。');
+    if (newCount === 0) setError('未能辨識體重資料，請確認截圖中有清楚的日期與體重數值。');
     setLastAddedCount(newCount);
     setLoading(false);
   }

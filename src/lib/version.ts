@@ -1,6 +1,7 @@
-export const APP_VERSION = '1.8.3';
+export const APP_VERSION = '1.8.4';
 export const APP_BUILD_DATE = '2026-06-09';
 // Changelog:
+// 1.8.4 (2026-06-09) — Garmin 匯入：圖片壓縮至 1920px 防止超出限制，錯誤訊息顯示實際原因
 // 1.8.3 (2026-06-09) — 修正全 app AI 辨識失敗：所有 API 改用正確 Model ID（claude-sonnet-4-6）
 // 1.8.2 (2026-06-09) — 進度頁新增腰圍追蹤：隨時輸入、趨勢圖、代謝風險值參考線、紀錄列表
 // 1.8.1 (2026-06-09) — 全面修正 HEIC 支援：PhotoUpload 元件與健康報告上傳均自動轉換 HEIC→JPEG
