@@ -307,7 +307,7 @@ ${suppSection}
 請根據實際數據給出精確的分析，不要泛泛而談，直接指出數字問題。若補充品打卡率偏低（<70%），請特別說明。`;
 
     const response = await client.messages.create({
-      model: 'claude-opus-4-5',
+      model: 'claude-sonnet-4-6',
       max_tokens: 2500,
       messages: [{ role: 'user', content: prompt }],
     });
