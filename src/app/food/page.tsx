@@ -71,7 +71,7 @@ function AddFoodForm({ onAdd, onClose, date, favoriteMeals }: AddFoodFormProps) 
         setName(r.name || name); setCategory(r.category || 'solid'); setServingSize(r.servingSize || '');
         setNutrition({ calories: r.calories || 0, protein: r.protein || 0, carbs: r.carbs || 0, fat: r.fat || 0 });
       }
-    } catch { setError('AI 分析失敗，請手動輸入'); }
+    } catch (err) { setError(`AI 分析失敗：${err instanceof Error ? err.message : '請稍後再試'}`); }
     finally { setLoading(false); }
   }
 

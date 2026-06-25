@@ -24,9 +24,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No image provided' }, { status: 400 });
     }
 
-    const prompt = foodName
-      ? `This is a photo of food. The user says it is: "${foodName}". Please analyze the food in the image and estimate nutritional information.`
-      : `Please analyze the food in this image and identify what it is.`;
+    const userHint = foodName ? `使用者說這是：「${foodName}」。` : '';
 
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',
@@ -39,25 +37,27 @@ export async function POST(req: NextRequest) {
               type: 'image',
               source: {
                 type: 'base64',
-                media_type: mimeType || 'image/jpeg',
+                media_type: (mimeType || 'image/jpeg') as 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif',
                 data: imageBase64,
               },
             },
             {
               type: 'text',
-              text: `${prompt}
+              text: `請分析這張食物照片的營養成分。${userHint}
 
-Please respond with a JSON object in this exact format (no markdown, just raw JSON):
+這是台灣使用者的飲食記錄，食物可能是台灣本地料理、亞洲食物、或西式料理。請根據照片中實際可見的份量估算。
+
+請只回傳以下 JSON 格式，不要加任何說明或 markdown：
 {
-  "name": "food name",
-  "category": "solid" or "liquid" or "supplement",
-  "servingSize": "estimated serving size (e.g., 1 bowl ~300g)",
-  "calories": number,
-  "protein": number (grams),
-  "carbs": number (grams),
-  "fat": number (grams),
-  "confidence": "high" or "medium" or "low",
-  "notes": "any relevant notes about the estimate"
+  "name": "食物名稱（中文）",
+  "category": "solid" 或 "liquid" 或 "supplement",
+  "servingSize": "估計份量（例如：1碗 約300g）",
+  "calories": 熱量數字（大卡）,
+  "protein": 蛋白質克數,
+  "carbs": 碳水化合物克數,
+  "fat": 脂肪克數,
+  "confidence": "high" 或 "medium" 或 "low",
+  "notes": "備註（如份量不確定請說明）"
 }`,
             },
           ],

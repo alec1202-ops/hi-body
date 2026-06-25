@@ -10,49 +10,41 @@ interface PhotoUploadProps {
   label?: string;
 }
 
-/** Convert any image file (including HEIC/HEIF) to JPEG via Canvas. */
+/** Resize + convert any image (including HEIC/HEIF) to JPEG via Canvas.
+ *  Max 1920px on longest side, 85% quality — keeps payload under 4 MB. */
 async function fileToJpegBase64(file: File): Promise<{ base64: string; mimeType: string; previewUrl: string }> {
-  const isHeic =
-    file.type === 'image/heic' ||
-    file.type === 'image/heif' ||
-    file.name.toLowerCase().endsWith('.heic') ||
-    file.name.toLowerCase().endsWith('.heif');
+  const MAX_PX = 1920;
+  const QUALITY = 0.85;
 
-  if (isHeic) {
-    return new Promise((resolve, reject) => {
-      const objectUrl = URL.createObjectURL(file);
-      const img = new window.Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) { URL.revokeObjectURL(objectUrl); reject(new Error('Canvas not available')); return; }
-        ctx.drawImage(img, 0, 0);
-        URL.revokeObjectURL(objectUrl);
-        canvas.toBlob((blob) => {
-          if (!blob) { reject(new Error('Conversion failed')); return; }
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const dataUrl = e.target!.result as string;
-            resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg', previewUrl: dataUrl });
-          };
-          reader.readAsDataURL(blob);
-        }, 'image/jpeg', 0.92);
-      };
-      img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('HEIC decode failed')); };
-      img.src = objectUrl;
-    });
-  }
-
-  // Standard formats
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target!.result as string;
-      resolve({ base64: dataUrl.split(',')[1], mimeType: file.type || 'image/jpeg', previewUrl: dataUrl });
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const img = new window.Image();
+    img.onload = () => {
+      let { naturalWidth: w, naturalHeight: h } = img;
+      if (w > MAX_PX || h > MAX_PX) {
+        const scale = Math.min(MAX_PX / w, MAX_PX / h);
+        w = Math.round(w * scale);
+        h = Math.round(h * scale);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { URL.revokeObjectURL(objectUrl); reject(new Error('Canvas not available')); return; }
+      ctx.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(objectUrl);
+      canvas.toBlob((blob) => {
+        if (!blob) { reject(new Error('Conversion failed')); return; }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const dataUrl = e.target!.result as string;
+          resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg', previewUrl: dataUrl });
+        };
+        reader.readAsDataURL(blob);
+      }, 'image/jpeg', QUALITY);
     };
-    reader.readAsDataURL(file);
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('Image load failed')); };
+    img.src = objectUrl;
   });
 }
 
