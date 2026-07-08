@@ -1,6 +1,7 @@
-export const APP_VERSION = '1.8.5';
+export const APP_VERSION = '1.8.6';
 export const APP_BUILD_DATE = '2026-06-09';
 // Changelog:
+// 1.8.6 (2026-06-09) — 修正 Strava 同步 timeout：詳細活動改為循序最多5筆，加 4s 逾時保護
 // 1.8.5 (2026-06-09) — 飲食 AI 分析：圖片壓縮修正 + 改用中文 Prompt 提升台灣食物辨識準確度
 // 1.8.4 (2026-06-09) — Garmin 匯入：圖片壓縮至 1920px 防止超出限制，錯誤訊息顯示實際原因
 // 1.8.3 (2026-06-09) — 修正全 app AI 辨識失敗：所有 API 改用正確 Model ID（claude-sonnet-4-6）

@@ -84,29 +84,30 @@ export async function POST(req: NextRequest) {
   const raw: any[] = await activitiesRes.json();
 
   // Fetch detailed activity for entries missing calories.
-  // The list endpoint returns SummaryActivity which omits the calories field;
-  // only DetailedActivity has it. kilojoules is used as a fallback estimate.
+  // Limit to 5 sequential fetches to avoid Vercel timeout and Strava rate limits.
+  // For the rest, kilojoules * 0.239 is a good enough estimate.
   const detailedMap = new Map<number, number>();
-  const missingCalories = raw.filter((a) => !a.calories);
+  const missingCalories = raw.filter((a) => !a.calories && !a.kilojoules).slice(0, 5);
 
-  await Promise.all(
-    missingCalories.map(async (a) => {
-      try {
-        const res = await fetch(
-          `https://www.strava.com/api/v3/activities/${a.id}`,
-          { headers: { Authorization: `Bearer ${currentAccessToken}` } }
-        );
-        if (!res.ok) return;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const detail: any = await res.json();
-        const kcal = detail.calories
-          ?? (detail.kilojoules ? Math.round(detail.kilojoules * 0.239) : 0);
-        detailedMap.set(a.id, kcal);
-      } catch {
-        // fall through — will use kilojoules estimate below
-      }
-    })
-  );
+  for (const a of missingCalories) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(
+        `https://www.strava.com/api/v3/activities/${a.id}`,
+        { headers: { Authorization: `Bearer ${currentAccessToken}` }, signal: controller.signal }
+      );
+      clearTimeout(timer);
+      if (!res.ok) continue;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const detail: any = await res.json();
+      const kcal = detail.calories
+        ?? (detail.kilojoules ? Math.round(detail.kilojoules * 0.239) : 0);
+      detailedMap.set(a.id, kcal);
+    } catch {
+      // fall through — will use kilojoules estimate below
+    }
+  }
 
   const entries: Omit<ExerciseEntry, 'id'>[] = raw.map((a) => {
     const sportType: string = a.sport_type ?? a.type ?? 'Workout';

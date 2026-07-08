@@ -267,8 +267,8 @@ function StravaBanner() {
       if (added > 0) parts.push(`新增 ${added} 筆`);
       if (updated > 0) parts.push(`更新 ${updated} 筆`);
       setSyncMsg(parts.length > 0 ? `✅ ${parts.join('、')}` : '已是最新，無變動');
-    } catch {
-      setSyncMsg('同步失敗，請稍後再試');
+    } catch (err) {
+      setSyncMsg(`同步失敗：${err instanceof Error ? err.message : '請稍後再試'}`);
     } finally {
       setSyncing(false);
     }
