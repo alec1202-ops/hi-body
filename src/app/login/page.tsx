@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { Mail, Lock, Eye, EyeOff, Dumbbell } from 'lucide-react';
 
 export default function LoginPage() {
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -31,13 +31,24 @@ export default function LoginPage() {
           setError('登入失敗：請稍後再試');
           setLoading(false);
         }
-      } else {
+      } else if (mode === 'register') {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) {
           setError('註冊失敗：' + error.message);
         } else {
           setMessage('✅ 註冊成功！現在可以登入了。');
           setMode('login');
+        }
+        setLoading(false);
+      } else {
+        // forgot password
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+        if (error) {
+          setError('發送失敗：' + error.message);
+        } else {
+          setMessage('✅ 重設連結已寄出，請檢查你的信箱（含垃圾郵件）');
         }
         setLoading(false);
       }
@@ -61,20 +72,33 @@ export default function LoginPage() {
         </div>
 
         {/* Tab */}
-        <div className="flex gap-1 bg-gray-700 rounded-xl p-1 mb-6">
-          <button
-            onClick={() => { setMode('login'); setError(''); setMessage(''); }}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${mode === 'login' ? 'bg-gray-600 shadow-sm text-white' : 'text-gray-400'}`}
-          >
-            登入
-          </button>
-          <button
-            onClick={() => { setMode('register'); setError(''); setMessage(''); }}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${mode === 'register' ? 'bg-gray-600 shadow-sm text-white' : 'text-gray-400'}`}
-          >
-            註冊帳號
-          </button>
-        </div>
+        {mode !== 'forgot' && (
+          <div className="flex gap-1 bg-gray-700 rounded-xl p-1 mb-6">
+            <button
+              onClick={() => { setMode('login'); setError(''); setMessage(''); }}
+              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${mode === 'login' ? 'bg-gray-600 shadow-sm text-white' : 'text-gray-400'}`}
+            >
+              登入
+            </button>
+            <button
+              onClick={() => { setMode('register'); setError(''); setMessage(''); }}
+              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${mode === 'register' ? 'bg-gray-600 shadow-sm text-white' : 'text-gray-400'}`}
+            >
+              註冊帳號
+            </button>
+          </div>
+        )}
+
+        {mode === 'forgot' && (
+          <div className="mb-6">
+            <button onClick={() => { setMode('login'); setError(''); setMessage(''); }}
+              className="text-xs text-gray-400 hover:text-gray-200 flex items-center gap-1">
+              ← 返回登入
+            </button>
+            <h2 className="text-base font-semibold text-white mt-3">重設密碼</h2>
+            <p className="text-xs text-gray-400 mt-1">輸入你的信箱，我們會寄送重設連結</p>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Email */}
@@ -90,22 +114,24 @@ export default function LoginPage() {
             />
           </div>
 
-          {/* Password */}
-          <div className="flex items-center gap-2 px-4 py-3 border border-gray-600 rounded-xl focus-within:border-emerald-400 bg-gray-700">
-            <Lock size={16} className="text-gray-400 flex-shrink-0" />
-            <input
-              type={showPassword ? 'text' : 'password'}
-              placeholder="密碼（至少 6 位）"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              className="flex-1 text-sm focus:outline-none border-0 p-0 bg-transparent"
-            />
-            <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-gray-400">
-              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
-          </div>
+          {/* Password — hidden in forgot mode */}
+          {mode !== 'forgot' && (
+            <div className="flex items-center gap-2 px-4 py-3 border border-gray-600 rounded-xl focus-within:border-emerald-400 bg-gray-700">
+              <Lock size={16} className="text-gray-400 flex-shrink-0" />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="密碼（至少 6 位）"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+                className="flex-1 text-sm focus:outline-none border-0 p-0 bg-transparent"
+              />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-gray-400">
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          )}
 
           {error && <p className="text-xs text-red-400">{error}</p>}
           {message && <p className="text-xs text-emerald-400">{message}</p>}
@@ -115,8 +141,15 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-800 text-white font-semibold rounded-xl transition-colors"
           >
-            {loading ? '處理中...' : mode === 'login' ? '登入' : '建立帳號'}
+            {loading ? '處理中...' : mode === 'login' ? '登入' : mode === 'register' ? '建立帳號' : '寄送重設連結'}
           </button>
+
+          {mode === 'login' && (
+            <button type="button" onClick={() => { setMode('forgot'); setError(''); setMessage(''); }}
+              className="w-full text-xs text-gray-500 hover:text-gray-300 text-center">
+              忘記密碼？
+            </button>
+          )}
         </form>
 
         <p className="text-center text-xs text-gray-500 mt-6">

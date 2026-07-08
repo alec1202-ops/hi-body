@@ -1,6 +1,8 @@
-export const APP_VERSION = '1.8.6';
-export const APP_BUILD_DATE = '2026-06-09';
+export const APP_VERSION = '1.8.8';
+export const APP_BUILD_DATE = '2026-07-08';
 // Changelog:
+// 1.8.8 (2026-07-08) — 登入頁新增忘記密碼功能：寄送重設連結，並新增重設密碼頁面
+// 1.8.7 (2026-06-09) — 修正 Strava 403/401 處理：403 不清除 token，approval_prompt 改 force
 // 1.8.6 (2026-06-09) — 修正 Strava 同步 timeout：詳細活動改為循序最多5筆，加 4s 逾時保護
 // 1.8.5 (2026-06-09) — 飲食 AI 分析：圖片壓縮修正 + 改用中文 Prompt 提升台灣食物辨識準確度
 // 1.8.4 (2026-06-09) — Garmin 匯入：圖片壓縮至 1920px 防止超出限制，錯誤訊息顯示實際原因
