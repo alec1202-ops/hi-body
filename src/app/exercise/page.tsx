@@ -225,11 +225,15 @@ function StravaBanner() {
         setSyncMsg('⚠️ Strava 授權失效，請點「連接 Strava」重新授權');
         return;
       }
-      if (data.status === 403) {
-        setSyncMsg('⚠️ Strava 拒絕存取（403），請斷開後重新連接 Strava 以取得完整授權');
+      if (!res.ok) {
+        const detail = data.detail ? ` (${data.detail})` : '';
+        if (data.status === 403) {
+          setSyncMsg(`⚠️ Strava 拒絕存取（403）${detail}，請斷開後重新連接 Strava 以取得完整授權`);
+        } else {
+          setSyncMsg(`同步失敗：${data.error ?? 'unknown'} ${data.status ?? ''}${detail}`);
+        }
         return;
       }
-      if (!res.ok) throw new Error(data.detail ? `${data.error} (${data.status ?? ''}: ${data.detail})` : data.error);
 
       if (data.newTokens) {
         setStravaTokens({ ...stravaTokens, ...data.newTokens });
@@ -373,6 +377,10 @@ function ExercisePageInner() {
     }
 
     const stravaError = searchParams.get('strava_error');
+    if (stravaError === 'insufficient_scope') {
+      const scope = searchParams.get('scope') ?? '（空）';
+      alert(`Strava 授權範圍不足！\n\n取得的權限：${scope}\n\n請重新連接，並確認授權頁面上有勾選「查看你的活動資料」選項。`);
+    }
     if (stravaError) {
       router.replace('/exercise');
     }

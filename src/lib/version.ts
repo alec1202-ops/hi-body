@@ -1,6 +1,7 @@
-export const APP_VERSION = '1.8.8';
+export const APP_VERSION = '1.8.9';
 export const APP_BUILD_DATE = '2026-07-08';
 // Changelog:
+// 1.8.9 (2026-07-08) — Strava 403：顯示詳細錯誤原因、偵測授權範圍不足並提示使用者
 // 1.8.8 (2026-07-08) — 登入頁新增忘記密碼功能：寄送重設連結，並新增重設密碼頁面
 // 1.8.7 (2026-06-09) — 修正 Strava 403/401 處理：403 不清除 token，approval_prompt 改 force
 // 1.8.6 (2026-06-09) — 修正 Strava 同步 timeout：詳細活動改為循序最多5筆，加 4s 逾時保護

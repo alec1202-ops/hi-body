@@ -37,6 +37,14 @@ export async function GET(req: NextRequest) {
 
   const data = await tokenRes.json();
 
+  // Verify scope includes activity:read_all
+  const grantedScope: string = data.scope ?? '';
+  if (!grantedScope.includes('activity:read_all')) {
+    return NextResponse.redirect(
+      `${baseUrl}/exercise?strava_error=insufficient_scope&scope=${encodeURIComponent(grantedScope)}`
+    );
+  }
+
   // Pass tokens to client via URL params (personal app – acceptable tradeoff)
   const params = new URLSearchParams({
     strava_access_token: data.access_token,
