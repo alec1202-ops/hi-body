@@ -26,7 +26,8 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET' || event.request.url.includes('/api/')) return;
+  const url = event.request.url;
+  if (event.request.method !== 'GET' || url.includes('/api/') || url.endsWith('/sw.js')) return;
 
   event.respondWith(
     fetch(event.request)
