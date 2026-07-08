@@ -220,9 +220,13 @@ function StravaBanner() {
         }),
       });
       const data = await res.json();
-      if (res.status === 401 || (data.status === 403 || data.status === 401)) {
+      if (res.status === 401 || data.status === 401) {
         setStravaTokens(null);
         setSyncMsg('⚠️ Strava 授權失效，請點「連接 Strava」重新授權');
+        return;
+      }
+      if (data.status === 403) {
+        setSyncMsg('⚠️ Strava 拒絕存取（403），請斷開後重新連接 Strava 以取得完整授權');
         return;
       }
       if (!res.ok) throw new Error(data.detail ? `${data.error} (${data.status ?? ''}: ${data.detail})` : data.error);

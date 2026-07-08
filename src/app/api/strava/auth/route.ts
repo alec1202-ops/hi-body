@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     client_id: clientId,
     redirect_uri: callbackUrl,
     response_type: 'code',
-    approval_prompt: 'auto',
+    approval_prompt: 'force',
     scope: 'activity:read_all',
   });
 
