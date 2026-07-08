@@ -51,10 +51,11 @@ export async function POST(req: NextRequest) {
   let newTokens: { accessToken: string; refreshToken: string; expiresAt: number } | null = null;
 
   // Refresh if expired (with 5-minute buffer)
-  if (Date.now() / 1000 > expiresAt - 300) {
+  const tokenExpired = Date.now() / 1000 > expiresAt - 300;
+  if (tokenExpired) {
     const refreshed = await refreshToken(storedRefresh);
     if (!refreshed) {
-      return NextResponse.json({ error: 'token_expired' }, { status: 401 });
+      return NextResponse.json({ error: 'token_expired', detail: 'refresh_failed' }, { status: 401 });
     }
     currentAccessToken = refreshed.access_token;
     newTokens = {
@@ -65,19 +66,27 @@ export async function POST(req: NextRequest) {
   }
 
   // Fetch activities from Strava (max 50 per sync)
-  const afterTs = after ?? Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60; // default: 30 days
-  const params = new URLSearchParams({
-    per_page: '50',
-    after: String(afterTs),
-  });
+  const afterTs = after ?? Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60;
+  const params = new URLSearchParams({ per_page: '50', after: String(afterTs) });
 
-  const activitiesRes = await fetch(
-    `https://www.strava.com/api/v3/athlete/activities?${params.toString()}`,
-    { headers: { Authorization: `Bearer ${currentAccessToken}` } }
-  );
+  let activitiesRes: Response;
+  try {
+    activitiesRes = await fetch(
+      `https://www.strava.com/api/v3/athlete/activities?${params.toString()}`,
+      { headers: { Authorization: `Bearer ${currentAccessToken}` } }
+    );
+  } catch (err) {
+    return NextResponse.json({ error: 'network_error', detail: String(err) }, { status: 502 });
+  }
 
   if (!activitiesRes.ok) {
-    return NextResponse.json({ error: 'fetch_failed', status: activitiesRes.status }, { status: 502 });
+    const body = await activitiesRes.text().catch(() => '');
+    return NextResponse.json({
+      error: 'strava_api_error',
+      status: activitiesRes.status,
+      detail: body.slice(0, 300),
+      tokenWasExpired: tokenExpired,
+    }, { status: 502 });
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

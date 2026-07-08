@@ -225,7 +225,7 @@ function StravaBanner() {
         setSyncMsg('授權已過期，請重新連接 Strava');
         return;
       }
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) throw new Error(data.detail ? `${data.error} (${data.status ?? ''}: ${data.detail})` : data.error);
 
       if (data.newTokens) {
         setStravaTokens({ ...stravaTokens, ...data.newTokens });
