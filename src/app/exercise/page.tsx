@@ -1,16 +1,15 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import React, { useState, Suspense } from 'react';
 import { format, subDays, addDays } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
-import { Plus, Trash2, Sparkles, Timer, Flame, Dumbbell, RefreshCw, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, Sparkles, Timer, Flame, Dumbbell, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { PhotoUpload } from '@/components/ui/PhotoUpload';
-import type { ExerciseEntry, StravaTokens } from '@/types';
+import type { ExerciseEntry } from '@/types';
 
 const EXERCISE_TYPES = [
   { value: 'cardio', label: '有氧', emoji: '🏃', color: 'orange' as const },
@@ -198,149 +197,6 @@ function AddExerciseForm({ onAdd, onClose, date, userWeight }: AddExerciseFormPr
   );
 }
 
-// ─── Strava Connect Banner ────────────────────────────────────────────────
-function StravaBanner() {
-  const { stravaTokens, setStravaTokens, addExerciseEntry, updateExerciseEntry, exerciseEntries } = useAppStore();
-  const [syncing, setSyncing] = useState(false);
-  const [syncMsg, setSyncMsg] = useState('');
-
-  async function handleSync() {
-    if (!stravaTokens) return;
-    setSyncing(true);
-    setSyncMsg('');
-    try {
-      const res = await fetch('/api/strava/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          accessToken: stravaTokens.accessToken,
-          refreshToken: stravaTokens.refreshToken,
-          expiresAt: stravaTokens.expiresAt,
-          after: Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60,
-        }),
-      });
-      const data = await res.json();
-      if (res.status === 401 || data.status === 401) {
-        setStravaTokens(null);
-        setSyncMsg('⚠️ Strava 授權失效，請點「連接 Strava」重新授權');
-        return;
-      }
-      if (!res.ok) {
-        const detail = data.detail ? ` (${data.detail})` : '';
-        if (data.status === 403) {
-          setSyncMsg(`⚠️ Strava 拒絕存取（403）${detail}，請斷開後重新連接 Strava 以取得完整授權`);
-        } else {
-          setSyncMsg(`同步失敗：${data.error ?? 'unknown'} ${data.status ?? ''}${detail}`);
-        }
-        return;
-      }
-
-      if (data.newTokens) {
-        setStravaTokens({ ...stravaTokens, ...data.newTokens });
-      }
-
-      const stravaIdToEntry = new Map(
-        exerciseEntries
-          .map((e) => {
-            const sid = e.notes?.match(/Strava ID: (\d+)/)?.[1];
-            return sid ? [sid, e] : null;
-          })
-          .filter((x): x is [string, ExerciseEntry] => x !== null)
-      );
-
-      let added = 0;
-      let updated = 0;
-      for (const entry of (data.entries as Omit<ExerciseEntry, 'id'>[])) {
-        const stravaId = entry.notes?.match(/Strava ID: (\d+)/)?.[1];
-        const existing = stravaId ? stravaIdToEntry.get(stravaId) : undefined;
-
-        if (existing) {
-          const calsChanged = entry.caloriesBurned > 0 && entry.caloriesBurned !== existing.caloriesBurned;
-          const durChanged = entry.duration !== existing.duration;
-          if (calsChanged || durChanged) {
-            updateExerciseEntry(existing.id, {
-              caloriesBurned: entry.caloriesBurned,
-              duration: entry.duration,
-              notes: entry.notes,
-            });
-            updated++;
-          }
-        } else {
-          addExerciseEntry({ ...entry, id: crypto.randomUUID() });
-          added++;
-        }
-      }
-
-      const parts = [];
-      if (added > 0) parts.push(`新增 ${added} 筆`);
-      if (updated > 0) parts.push(`更新 ${updated} 筆`);
-      setSyncMsg(parts.length > 0 ? `✅ ${parts.join('、')}` : '已是最新，無變動');
-    } catch (err) {
-      setSyncMsg(`同步失敗：${err instanceof Error ? err.message : '請稍後再試'}`);
-    } finally {
-      setSyncing(false);
-    }
-  }
-
-  if (!stravaTokens) {
-    return (
-      <Card className="mb-4 border-orange-800 bg-orange-950/30">
-        <CardContent className="pt-4 pb-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">🏃</span>
-              <div>
-                <p className="text-sm font-semibold text-gray-100">連接 Strava</p>
-                <p className="text-xs text-gray-400">自動匯入跑步、騎車等運動紀錄</p>
-              </div>
-            </div>
-            <a
-              href="/api/strava/auth"
-              className="px-4 py-2 bg-[#FC4C02] text-white text-xs font-bold rounded-xl whitespace-nowrap"
-            >
-              連接
-            </a>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card className="mb-4 border-[#FC4C02]/30 bg-orange-950/30">
-      <CardContent className="pt-3 pb-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="text-lg flex-shrink-0">🟠</span>
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-gray-100 truncate">
-                Strava · {stravaTokens.athleteName || '已連接'}
-              </p>
-              {syncMsg && <p className="text-[11px] text-emerald-400">{syncMsg}</p>}
-            </div>
-          </div>
-          <div className="flex gap-1.5 flex-shrink-0">
-            <button
-              onClick={handleSync}
-              disabled={syncing}
-              className="flex items-center gap-1 px-3 py-1.5 bg-[#FC4C02] text-white text-xs font-semibold rounded-xl disabled:opacity-50"
-            >
-              <RefreshCw size={12} className={syncing ? 'animate-spin' : ''} />
-              {syncing ? '同步中' : '同步'}
-            </button>
-            <button
-              onClick={() => { setStravaTokens(null); setSyncMsg(''); }}
-              className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-900/30 rounded-xl"
-              title="中斷連接"
-            >
-              <LogOut size={14} />
-            </button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
 
 function dateLabel(dateStr: string): string {
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -353,39 +209,7 @@ function dateLabel(dateStr: string): string {
 function ExercisePageInner() {
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [showForm, setShowForm] = useState(false);
-  const { exerciseEntries, addExerciseEntry, deleteExerciseEntry, profile, setStravaTokens } = useAppStore();
-  const searchParams = useSearchParams();
-  const router = useRouter();
-
-  useEffect(() => {
-    const accessToken = searchParams.get('strava_access_token');
-    const refreshToken = searchParams.get('strava_refresh_token');
-    const expiresAt = searchParams.get('strava_expires_at');
-    const athleteName = searchParams.get('strava_athlete_name');
-    const athleteId = searchParams.get('strava_athlete_id');
-
-    if (accessToken && refreshToken && expiresAt) {
-      const tokens: StravaTokens = {
-        accessToken,
-        refreshToken,
-        expiresAt: parseInt(expiresAt),
-        athleteName: athleteName ?? '',
-        athleteId: parseInt(athleteId ?? '0'),
-      };
-      setStravaTokens(tokens);
-      router.replace('/exercise');
-    }
-
-    const stravaError = searchParams.get('strava_error');
-    if (stravaError === 'insufficient_scope') {
-      const scope = searchParams.get('scope') ?? '（空）';
-      alert(`Strava 授權範圍不足！\n\n取得的權限：${scope}\n\n請重新連接，並確認授權頁面上有勾選「查看你的活動資料」選項。`);
-    }
-    if (stravaError) {
-      router.replace('/exercise');
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const { exerciseEntries, addExerciseEntry, deleteExerciseEntry, profile } = useAppStore();
 
   const dayExercise = exerciseEntries.filter((e) => e.date === date);
   const totalCalories = dayExercise.reduce((s, e) => s + e.caloriesBurned, 0);
@@ -428,9 +252,6 @@ function ExercisePageInner() {
           </button>
         </div>
       </div>
-
-      {/* Strava */}
-      <StravaBanner />
 
       {/* Summary */}
       <Card className="mb-4">
