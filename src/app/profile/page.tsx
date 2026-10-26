@@ -7,6 +7,47 @@ import { useAuth } from '@/lib/auth-context';
 import { APP_VERSION, APP_BUILD_DATE } from '@/lib/version';
 import type { UserProfile } from '@/types';
 
+// NumInput: keeps a local string so the user can edit freely; only commits the
+// parsed number when they leave the field (onBlur).
+function NumInput({
+  value,
+  onChange,
+  placeholder,
+  decimal = false,
+  className,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  placeholder?: string;
+  decimal?: boolean;
+  className?: string;
+}) {
+  const [str, setStr] = useState(value > 0 ? String(value) : '');
+
+  // Keep in sync when parent reloads (e.g. profile loaded from cloud)
+  useEffect(() => {
+    setStr(value > 0 ? String(value) : '');
+  }, [value]);
+
+  function commit(raw: string) {
+    const v = decimal ? parseFloat(raw) : parseInt(raw);
+    if (!isNaN(v) && v > 0) onChange(v);
+  }
+
+  return (
+    <input
+      type="text"
+      inputMode={decimal ? 'decimal' : 'numeric'}
+      pattern={decimal ? '[0-9.]*' : '[0-9]*'}
+      value={str}
+      placeholder={placeholder}
+      onChange={(e) => setStr(e.target.value)}
+      onBlur={(e) => commit(e.target.value)}
+      className={className}
+    />
+  );
+}
+
 export default function ProfilePage() {
   const { profile, setProfile, weightEntries, workoutEntries } = useAppStore();
   const { user, signOut } = useAuth();
@@ -112,30 +153,22 @@ export default function ProfilePage() {
           </div>
           <div>
             <p className="text-xs text-gray-400 mb-1.5">年齡</p>
-            <input type="text" inputMode="numeric" pattern="[0-9]*" value={form.age || ''}
-              onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) update('age', v); else if (e.target.value === '') update('age', 0); }}
-              className={inputCls} />
+            <NumInput value={form.age} onChange={(v) => update('age', v)} placeholder="25" className={inputCls} />
           </div>
         </div>
 
         <div className="grid grid-cols-3 gap-2">
           <div>
             <p className="text-xs text-gray-400 mb-1.5">身高 (cm)</p>
-            <input type="text" inputMode="numeric" pattern="[0-9]*" value={form.height || ''}
-              onChange={(e) => { const v = parseFloat(e.target.value); if (!isNaN(v)) update('height', v); else if (e.target.value === '') update('height', 0); }}
-              className={inputCls} />
+            <NumInput value={form.height} onChange={(v) => update('height', v)} placeholder="170" className={inputCls} />
           </div>
           <div>
             <p className="text-xs text-gray-400 mb-1.5">體重 (kg)</p>
-            <input type="text" inputMode="decimal" pattern="[0-9.]*" value={form.weight || ''}
-              onChange={(e) => { const v = parseFloat(e.target.value); if (!isNaN(v)) update('weight', v); else if (e.target.value === '') update('weight', 0); }}
-              className={inputCls} />
+            <NumInput value={form.weight} onChange={(v) => update('weight', v)} placeholder="70" decimal className={inputCls} />
           </div>
           <div>
             <p className="text-xs text-gray-400 mb-1.5">目標 (kg)</p>
-            <input type="text" inputMode="decimal" pattern="[0-9.]*" value={form.targetWeight || ''}
-              onChange={(e) => { const v = parseFloat(e.target.value); if (!isNaN(v)) update('targetWeight', v); else if (e.target.value === '') update('targetWeight', 0); }}
-              className={inputCls} />
+            <NumInput value={form.targetWeight} onChange={(v) => update('targetWeight', v)} placeholder="65" decimal className={inputCls} />
           </div>
         </div>
       </div>
