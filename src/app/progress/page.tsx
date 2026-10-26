@@ -51,19 +51,19 @@ function WeightForm({ onSave, onClose }: { onSave: (e: Omit<WeightEntry, 'id'>) 
           </div>
           <div>
             <p className="text-xs text-gray-400 mb-1.5">體重（kg）</p>
-            <input type="number" step="0.1" value={weight} onChange={(e) => setWeight(e.target.value)}
+            <input type="text" inputMode="decimal" pattern="[0-9.]*" value={weight} onChange={(e) => setWeight(e.target.value)}
               placeholder="例：72.5" autoFocus
               className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-400" />
           </div>
           <div>
             <p className="text-xs text-gray-400 mb-1.5">體脂率（%，選填）</p>
-            <input type="number" step="0.1" value={bodyFat} onChange={(e) => setBodyFat(e.target.value)}
+            <input type="text" inputMode="decimal" pattern="[0-9.]*" value={bodyFat} onChange={(e) => setBodyFat(e.target.value)}
               placeholder="例：18.5"
               className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-400" />
           </div>
           <div>
             <p className="text-xs text-gray-400 mb-1.5">骨骼肌肉量（kg，選填）</p>
-            <input type="number" step="0.1" value={muscleMass} onChange={(e) => setMuscleMass(e.target.value)}
+            <input type="text" inputMode="decimal" pattern="[0-9.]*" value={muscleMass} onChange={(e) => setMuscleMass(e.target.value)}
               placeholder="例：35.2"
               className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-400" />
           </div>

@@ -347,7 +347,7 @@ function LogForm({ date, onSave, onClose }: { date: string; onSave: (e: Omit<Wor
               {/* Duration */}
               <div>
                 <p className="text-xs text-gray-400 mb-1.5">時間（分鐘）</p>
-                <input type="number" value={duration} onChange={(e) => setDuration(e.target.value)}
+                <input type="text" inputMode="numeric" pattern="[0-9]*" value={duration} onChange={(e) => setDuration(e.target.value)}
                   placeholder="例：45"
                   className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-400" />
               </div>
@@ -357,7 +357,7 @@ function LogForm({ date, onSave, onClose }: { date: string; onSave: (e: Omit<Wor
                 <div className="space-y-3">
                   <div>
                     <p className="text-xs text-gray-400 mb-1.5">距離（公尺）</p>
-                    <input type="number" value={swimDist} onChange={(e) => setSwimDist(e.target.value)}
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={swimDist} onChange={(e) => setSwimDist(e.target.value)}
                       placeholder="例：1500"
                       className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-400" />
                   </div>
@@ -380,7 +380,7 @@ function LogForm({ date, onSave, onClose }: { date: string; onSave: (e: Omit<Wor
               {effectiveType === 'run' && (
                 <div>
                   <p className="text-xs text-gray-400 mb-1.5">距離（公里）</p>
-                  <input type="number" step="0.01" value={runDist} onChange={(e) => setRunDist(e.target.value)}
+                  <input type="text" inputMode="decimal" pattern="[0-9.]*" value={runDist} onChange={(e) => setRunDist(e.target.value)}
                     placeholder="例：5.0"
                     className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-400" />
                   {runDist && duration && parseFloat(runDist) > 0 && parseInt(duration) > 0 && (
@@ -395,7 +395,7 @@ function LogForm({ date, onSave, onClose }: { date: string; onSave: (e: Omit<Wor
               {effectiveType === 'cycling' && (
                 <div>
                   <p className="text-xs text-gray-400 mb-1.5">距離（公里，選填）</p>
-                  <input type="number" step="0.1" value={cycleDist} onChange={(e) => setCycleDist(e.target.value)}
+                  <input type="text" inputMode="decimal" pattern="[0-9.]*" value={cycleDist} onChange={(e) => setCycleDist(e.target.value)}
                     placeholder="例：30"
                     className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-400" />
                 </div>

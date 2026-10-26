@@ -112,8 +112,8 @@ export default function ProfilePage() {
           </div>
           <div>
             <p className="text-xs text-gray-400 mb-1.5">年齡</p>
-            <input type="number" min={10} max={100} value={form.age || ''}
-              onChange={(e) => update('age', parseInt(e.target.value) || 25)}
+            <input type="text" inputMode="numeric" pattern="[0-9]*" value={form.age || ''}
+              onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v)) update('age', v); else if (e.target.value === '') update('age', 0); }}
               className={inputCls} />
           </div>
         </div>
@@ -121,20 +121,20 @@ export default function ProfilePage() {
         <div className="grid grid-cols-3 gap-2">
           <div>
             <p className="text-xs text-gray-400 mb-1.5">身高 (cm)</p>
-            <input type="number" min={100} max={250} value={form.height || ''}
-              onChange={(e) => update('height', parseFloat(e.target.value) || 170)}
+            <input type="text" inputMode="numeric" pattern="[0-9]*" value={form.height || ''}
+              onChange={(e) => { const v = parseFloat(e.target.value); if (!isNaN(v)) update('height', v); else if (e.target.value === '') update('height', 0); }}
               className={inputCls} />
           </div>
           <div>
             <p className="text-xs text-gray-400 mb-1.5">體重 (kg)</p>
-            <input type="number" min={30} max={300} step={0.1} value={form.weight || ''}
-              onChange={(e) => update('weight', parseFloat(e.target.value) || 70)}
+            <input type="text" inputMode="decimal" pattern="[0-9.]*" value={form.weight || ''}
+              onChange={(e) => { const v = parseFloat(e.target.value); if (!isNaN(v)) update('weight', v); else if (e.target.value === '') update('weight', 0); }}
               className={inputCls} />
           </div>
           <div>
             <p className="text-xs text-gray-400 mb-1.5">目標 (kg)</p>
-            <input type="number" min={30} max={300} step={0.1} value={form.targetWeight || ''}
-              onChange={(e) => update('targetWeight', parseFloat(e.target.value) || 65)}
+            <input type="text" inputMode="decimal" pattern="[0-9.]*" value={form.targetWeight || ''}
+              onChange={(e) => { const v = parseFloat(e.target.value); if (!isNaN(v)) update('targetWeight', v); else if (e.target.value === '') update('targetWeight', 0); }}
               className={inputCls} />
           </div>
         </div>
