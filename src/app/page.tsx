@@ -1,601 +1,215 @@
 'use client';
 
-import { useState } from 'react';
-import { format, addDays, subDays } from 'date-fns';
+import { useAppStore } from '@/lib/store';
+import { format, startOfWeek, differenceInDays } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Flame, Zap, Scale, Plus, Droplets, Utensils, TrendingUp, Minus, Moon, UtensilsCrossed } from 'lucide-react';
-import Link from 'next/link';
-import { useAppStore, calculateTDEE, getStreak, build12MonthProjection, getProteinCalorieFactor } from '@/lib/store';
-import { Card, CardContent, CardHeader } from '@/components/ui/Card';
-import { ProgressRing } from '@/components/ui/ProgressRing';
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
+import { useRouter } from 'next/navigation';
+import type { WorkoutType } from '@/types';
 
-// ─── Night Routine Card ────────────────────────────────────────────────────────
-function NightRoutineCard({ date }: { date: string }) {
-  const { getDailyLog, upsertDailyLog } = useAppStore();
-  const log = getDailyLog(date);
+const WORKOUT_TYPES: { type: WorkoutType; label: string; emoji: string; color: string }[] = [
+  { type: 'swim',     label: '游泳',       emoji: '🏊', color: 'text-blue-400' },
+  { type: 'run',      label: '跑步',       emoji: '🏃', color: 'text-orange-400' },
+  { type: 'cycling',  label: '室內自行車', emoji: '🚴', color: 'text-yellow-400' },
+  { type: 'gym',      label: '健身',       emoji: '🏋️', color: 'text-purple-400' },
+  { type: 'stretch',  label: '拉筋',       emoji: '🧘', color: 'text-green-400' },
+  { type: 'rest',     label: '休息',       emoji: '😴', color: 'text-gray-400' },
+  { type: 'free',     label: '自由選',     emoji: '⭐', color: 'text-emerald-400' },
+];
 
-  const DEFAULT_DINNER = '19:00';
-  const DEFAULT_BED = '23:00';
-  const dinner = log?.dinnerFinishedAt ?? DEFAULT_DINNER;
-  const bed = log?.bedTime ?? DEFAULT_BED;
-
-  function parseMinutes(t: string): number {
-    const [h, m] = t.split(':').map(Number);
-    return h * 60 + m;
-  }
-
-  const skipDinner = log?.skipDinner ?? false;
-  const hasActualData = !!(log?.dinnerFinishedAt || log?.bedTime || log?.skipDinner);
-
-  // Gap analysis
-  let gapMinutes: number | null = null;
-  let gapLabel = '';
-  let gapColor = '';
-  let gapInsight = '';
-  if (skipDinner && bed) {
-    gapColor = 'text-emerald-400';
-    gapInsight = '今天沒吃晚餐，空腹時間長，對內臟脂肪代謝最有利 💪';
-  } else if (dinner && bed) {
-    let g = parseMinutes(bed) - parseMinutes(dinner);
-    if (g < 0) g += 24 * 60;
-    gapMinutes = g;
-    const h = Math.floor(g / 60);
-    const m = g % 60;
-    gapLabel = m > 0 ? `${h} 小時 ${m} 分` : `${h} 小時`;
-    if (g < 120) {
-      gapColor = 'text-red-400';
-      gapInsight = '進食後不足 2 小時就寢，腸胃仍在工作，內臟脂肪代謝效率低';
-    } else if (g < 180) {
-      gapColor = 'text-yellow-400';
-      gapInsight = '差一點！建議晚餐後至少 3 小時再入睡，效果更佳';
-    } else {
-      gapColor = 'text-emerald-400';
-      gapInsight = '間距充足，空腹入睡有助啟動脂肪燃燒與內臟脂肪代謝 🔥';
-    }
-  }
-
-  // Bedtime rating
-  let bedRating = '';
-  let bedRatingColor = '';
-  if (bed) {
-    const bm = parseMinutes(bed);
-    const bm24 = bm < 360 ? bm + 24 * 60 : bm; // treat 00:xx–05:xx as past midnight
-    if (bm24 <= 22 * 60) { bedRating = '極佳'; bedRatingColor = 'text-emerald-400'; }
-    else if (bm24 <= 23 * 60) { bedRating = '良好'; bedRatingColor = 'text-emerald-400'; }
-    else if (bm24 <= 24 * 60) { bedRating = '可接受'; bedRatingColor = 'text-yellow-400'; }
-    else { bedRating = '偏晚'; bedRatingColor = 'text-red-400'; }
-  }
-
-  return (
-    <Card className="mb-4">
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <Moon size={14} className="text-indigo-400" />
-          <h2 className="text-sm font-semibold text-gray-200">晚餐 &amp; 就寢時間</h2>
-          <span className="text-xs text-gray-500 ml-auto">對內臟脂肪代謝關鍵</span>
-        </div>
-      </CardHeader>
-      <CardContent className="pt-0 space-y-2">
-        {/* Dinner row */}
-        <div className="flex items-center justify-between px-1 py-1">
-          <div className="flex items-center gap-2">
-            <UtensilsCrossed size={14} className="text-orange-400 flex-shrink-0" />
-            <span className="text-sm text-gray-300">晚餐完成時間</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => upsertDailyLog({ date, skipDinner: !skipDinner, dinnerFinishedAt: skipDinner ? log?.dinnerFinishedAt : undefined, bedTime: log?.bedTime })}
-              className={`px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
-                skipDinner
-                  ? 'bg-emerald-900/40 border-emerald-700 text-emerald-400'
-                  : 'bg-gray-700/50 border-gray-600 text-gray-500 hover:text-gray-300'
-              }`}
-            >
-              沒吃
-            </button>
-            {!skipDinner && (
-              <input
-                type="time"
-                value={dinner}
-                onChange={(e) => upsertDailyLog({ date, dinnerFinishedAt: e.target.value, skipDinner: false, bedTime: log?.bedTime })}
-                className="w-28 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white text-center focus:outline-none focus:border-orange-400"
-              />
-            )}
-          </div>
-        </div>
-
-        <div className="border-t border-gray-700/60 mx-1" />
-
-        {/* Bed row */}
-        <div className="flex items-center justify-between px-1 py-1">
-          <div className="flex items-center gap-2">
-            <Moon size={14} className="text-indigo-400 flex-shrink-0" />
-            <span className="text-sm text-gray-300">上床睡覺時間</span>
-            {bedRating && (
-              <span className={`text-xs font-semibold ${bedRatingColor}`}>{bedRating}</span>
-            )}
-          </div>
-          <input
-            type="time"
-            value={bed}
-            onChange={(e) => upsertDailyLog({ date, dinnerFinishedAt: log?.dinnerFinishedAt, bedTime: e.target.value })}
-            className="w-28 px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white text-center focus:outline-none focus:border-indigo-400"
-          />
-        </div>
-
-        {/* Gap result */}
-        {(gapMinutes !== null || (skipDinner && bed)) && (
-          <div className="mx-1 px-3 py-2.5 rounded-xl bg-gray-700/50 border border-gray-600">
-            {!skipDinner && (
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs text-gray-400">晚餐 → 就寢間距</span>
-                <span className={`text-sm font-bold ${gapColor}`}>{gapLabel}</span>
-              </div>
-            )}
-            <p className="text-xs text-gray-400">{gapInsight}</p>
-          </div>
-        )}
-
-        {!hasActualData && (
-          <p className="text-xs text-gray-500 text-center pb-1">以預設時間（晚餐 19:00 / 就寢 23:00）顯示，調整後自動儲存</p>
-        )}
-      </CardContent>
-    </Card>
-  );
+function getWeekStart(date: Date) {
+  return startOfWeek(date, { weekStartsOn: 1 }); // Monday
 }
 
-function NutrientBar({ label, value, target, color }: { label: string; value: number; target: number; color: string }) {
-  const pct = target > 0 ? Math.min(100, (value / target) * 100) : 0;
-  return (
-    <div className="space-y-1">
-      <div className="flex justify-between text-xs text-gray-400">
-        <span>{label}</span>
-        <span className="font-medium">{Math.round(value)}g / {target}g</span>
-      </div>
-      <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: color }} />
-      </div>
-    </div>
+export default function TodayPage() {
+  const { workoutEntries, weightEntries, raceEvents } = useAppStore();
+  const router = useRouter();
+
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const weekStart = getWeekStart(new Date());
+  const weekStartStr = format(weekStart, 'yyyy-MM-dd');
+  const weekEndStr = format(new Date(weekStart.getTime() + 6 * 86400000), 'yyyy-MM-dd');
+
+  // This week's completed workouts
+  const thisWeekEntries = workoutEntries.filter(
+    (e) => e.date >= weekStartStr && e.date <= weekEndStr
   );
-}
+  const completedTypes = new Set(
+    thisWeekEntries.map((e) => e.actualType ?? e.type)
+  );
 
-const QUICK_ADD_ML = [150, 250, 350, 500];
+  // Which of the 7 types are still missing this week
+  const allTypes: WorkoutType[] = ['swim', 'run', 'cycling', 'gym', 'stretch', 'rest', 'free'];
+  const remainingTypes = allTypes.filter((t) => !completedTypes.has(t));
 
-export default function DashboardPage() {
-  const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const { profile, getDailySummary, foodEntries, exerciseEntries, weightEntries, waterEntries, addWaterEntry, deleteWaterEntry, tdeeReminderDismissedWeight, dismissTdeeReminder } = useAppStore();
-  const sortedWeightsAll = [...weightEntries].sort((a, b) => a.date.localeCompare(b.date));
+  // Today's entry (if any)
+  const todayEntry = workoutEntries.find((e) => e.date === today);
 
-  const summary = getDailySummary(date);
-  const tdee = profile ? calculateTDEE(profile) : 0;
-  const calorieTarget = profile?.dailyCalorieTarget || tdee;
-  const proteinTarget = profile?.dailyProteinTarget || 0;
-
-  const caloriePct = calorieTarget > 0 ? Math.round((summary.totalCaloriesIn / calorieTarget) * 100) : 0;
-
-  const streak = getStreak(foodEntries);
-  const dayFood = foodEntries.filter((e) => e.date === date);
-  const dayExercise = exerciseEntries.filter((e) => e.date === date);
-  const dayWater = waterEntries.filter((e) => e.date === date);
-  const totalWaterMl = dayWater.reduce((s, e) => s + e.amount, 0);
-  const waterTarget = profile?.dailyWaterTarget ?? 2000;
-  const waterPct = Math.min(100, Math.round((totalWaterMl / waterTarget) * 100));
-
+  // Last weight entry
   const sortedWeights = [...weightEntries].sort((a, b) => b.date.localeCompare(a.date));
-  const latestWeight = sortedWeights[0];
+  const lastWeight = sortedWeights[0];
+  const daysSinceWeight = lastWeight
+    ? differenceInDays(new Date(), new Date(lastWeight.date + 'T00:00:00'))
+    : null;
 
-  // 12-month projection (30-day window + weekly averaging — same as progress page)
-  const projectionResult = build12MonthProjection(sortedWeightsAll, profile?.targetWeight);
-  const regressionResult = projectionResult; // alias for display compatibility
-  // Protein/strength factor for calorie model
-  const { factor: calorieFactor } = getProteinCalorieFactor(foodEntries, exerciseEntries, profile);
+  // Next upcoming race
+  const upcomingRaces = raceEvents
+    .filter((e) => e.date >= today)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const nextRace = upcomingRaces[0];
+  const daysToRace = nextRace
+    ? differenceInDays(new Date(nextRace.date + 'T00:00:00'), new Date())
+    : null;
 
-  const weightDiff = latestWeight && profile ? Math.abs(latestWeight.weight - profile.weight) : 0;
-  const showTdeeReminder = weightDiff >= 3 && (
-    tdeeReminderDismissedWeight === null ||
-    Math.abs(latestWeight!.weight - tdeeReminderDismissedWeight) >= 1
-  );
-
-  function handleAddWater(ml: number) {
-    const now = new Date();
-    addWaterEntry({
-      id: `water-${now.getTime()}-${Math.random().toString(36).slice(2, 7)}`,
-      date,
-      amount: ml,
-      timestamp: now.toISOString(),
-    });
-  }
-
-  function handleDeleteLastWater() {
-    if (dayWater.length === 0) return;
-    const last = [...dayWater].sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0];
-    deleteWaterEntry(last.id);
-  }
-
-  const isToday = date === format(new Date(), 'yyyy-MM-dd');
-
-  function dateLabel(dateStr: string): string {
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
-    if (dateStr === today) return '今天';
-    if (dateStr === yesterday) return '昨天';
-    return format(new Date(dateStr + 'T00:00:00'), 'M月d日 (EEE)', { locale: zhTW });
-  }
-
-  // Monthly prediction: require 7 consecutive days with food records
-  const loggedDates = new Set(foodEntries.map((e) => e.date));
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
-  const sevenDayWindow: string[] = [];
-  for (let i = 0; i < 30; i++) {
-    const d = format(subDays(new Date(todayStr + 'T00:00:00'), i), 'yyyy-MM-dd');
-    if (loggedDates.has(d)) {
-      sevenDayWindow.push(d);
-      if (sevenDayWindow.length === 7) break;
-    } else {
-      break;
-    }
-  }
-  const hasEnoughData = sevenDayWindow.length >= 7;
-  const avgNetCal = hasEnoughData
-    ? sevenDayWindow.reduce((sum, d) => {
-        const s = getDailySummary(d);
-        return sum + (s.totalCaloriesIn - s.totalCaloriesOut);
-      }, 0) / 7
-    : 0;
-  const calorieMonthlyChange = hasEnoughData ? (avgNetCal * 30) / calorieFactor : 0;
-  // Use regression if available, else calorie model
-  const monthlyChange = regressionResult ? regressionResult.monthlyChange : calorieMonthlyChange;
-  const usingRegression = !!regressionResult;
+  const dateLabel = format(new Date(), 'M月d日 EEEE', { locale: zhTW });
 
   return (
-    <div className="page-container px-4 pt-5">
+    <div className="page-container px-4 pt-6 pb-24">
+
       {/* Header */}
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Hi Body 💪</h1>
-          <p className="text-sm text-gray-400 mt-0.5">{dateLabel(date)}</p>
-        </div>
-        <div className="flex items-center gap-1">
-          <button onClick={() => setDate(format(subDays(new Date(date + 'T00:00:00'), 1), 'yyyy-MM-dd'))} className="p-2 hover:bg-gray-700 rounded-xl">
-            <ChevronLeft size={18} className="text-gray-400" />
-          </button>
-          <button
-            onClick={() => setDate(format(new Date(), 'yyyy-MM-dd'))}
-            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${isToday ? 'bg-emerald-900/50 text-emerald-400' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
-          >
-            {dateLabel(date)}
-          </button>
-          <button onClick={() => setDate(format(addDays(new Date(date + 'T00:00:00'), 1), 'yyyy-MM-dd'))} className="p-2 hover:bg-gray-700 rounded-xl">
-            <ChevronRight size={18} className="text-gray-400" />
-          </button>
-        </div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-white">今天</h1>
+        <p className="text-sm text-gray-400 mt-0.5">{dateLabel}</p>
       </div>
 
-      {!profile && (
-        <Card className="mb-4 border-emerald-800 bg-emerald-950/30">
-          <CardContent className="py-4">
-            <p className="text-sm text-emerald-300 font-medium mb-2">👋 歡迎！先設定你的個人資料</p>
-            <Link href="/profile">
-              <Button size="sm">前往設定</Button>
-            </Link>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* TDEE update reminder */}
-      {showTdeeReminder && (
-        <Card className="mb-4 border-yellow-800 bg-yellow-950/30">
-          <CardContent className="py-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-yellow-300">⚡ 建議更新 TDEE 設定</p>
-                <p className="text-xs text-yellow-500/80 mt-0.5">
-                  你的體重已變化 <span className="font-bold text-yellow-400">{weightDiff.toFixed(1)} kg</span>，TDEE 和目標熱量可能需要調整
-                </p>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0 mt-0.5">
-                <Link href="/profile">
-                  <button className="px-3 py-1.5 text-xs font-semibold bg-yellow-500 hover:bg-yellow-400 text-gray-900 rounded-lg transition-colors">
-                    去更新
-                  </button>
-                </Link>
-                <button
-                  onClick={() => dismissTdeeReminder(latestWeight!.weight)}
-                  className="text-gray-500 hover:text-gray-300 text-lg leading-none"
-                  aria-label="dismiss"
-                >
-                  ×
-                </button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Streak banner */}
-      {(streak.current > 0 || streak.longest > 0) && (
-        <div className={`flex items-center justify-between px-4 py-3 rounded-2xl mb-4 border ${streak.current >= 7 ? 'bg-orange-950/40 border-orange-800' : streak.current > 0 ? 'bg-amber-950/30 border-amber-800/60' : 'bg-gray-800 border-gray-700'}`}>
-          <div className="flex items-center gap-2.5">
-            <span className="text-2xl">{streak.current >= 30 ? '🔥' : streak.current >= 7 ? '⚡' : '📅'}</span>
+      {/* Today's status */}
+      <div className="bg-gray-800 rounded-2xl p-4 mb-4">
+        {todayEntry ? (
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">
+              {WORKOUT_TYPES.find((w) =>
+                w.type === (todayEntry.actualType ?? todayEntry.type)
+              )?.emoji ?? '✅'}
+            </span>
             <div>
-              <p className="text-sm font-bold text-white">
-                {streak.current > 0
-                  ? `連續打卡 ${streak.current} 天`
-                  : '今天還沒記錄'}
+              <p className="text-sm font-semibold text-white">
+                今天已完成{' '}
+                {WORKOUT_TYPES.find((w) =>
+                  w.type === (todayEntry.actualType ?? todayEntry.type)
+                )?.label}
+                {todayEntry.duration > 0 && ` · ${todayEntry.duration} 分鐘`}
               </p>
-              <p className="text-xs text-gray-400">
-                {streak.loggedToday ? '今日已記錄 ✓' : streak.current > 0 ? '記錄今天以延續 streak！' : '快去記錄飲食吧'}
-              </p>
+              <p className="text-xs text-emerald-400 mt-0.5">繼續保持 💪</p>
             </div>
           </div>
-          {streak.longest > 1 && (
-            <div className="text-right">
-              <p className="text-xs text-gray-500">最長紀錄</p>
-              <p className="text-sm font-semibold text-gray-300">{streak.longest} 天</p>
+        ) : (
+          <div>
+            <p className="text-xs text-gray-400 mb-3">今天還沒記錄運動，建議：</p>
+            <div className="flex flex-wrap gap-2">
+              {remainingTypes.slice(0, 4).map((type) => {
+                const w = WORKOUT_TYPES.find((x) => x.type === type)!;
+                return (
+                  <button
+                    key={type}
+                    onClick={() => router.push('/workout')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-xl text-xs font-medium text-white transition-colors"
+                  >
+                    <span>{w.emoji}</span>
+                    <span>{w.label}</span>
+                  </button>
+                );
+              })}
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
 
-      {/* Calorie Ring */}
-      <Card className="mb-4">
-        <CardContent className="pt-5">
-          <div className="flex items-center justify-between">
-            <div className="flex flex-col items-center gap-2">
-              <ProgressRing
-                value={caloriePct}
-                size={100}
-                strokeWidth={10}
-                color="#10b981"
-                trackColor="#052e16"
-                label={`${Math.round(summary.totalCaloriesIn)}`}
-                sublabel="kcal"
-              />
-              <span className="text-xs text-gray-400">攝入熱量</span>
-            </div>
-
-            <div className="flex-1 px-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-orange-900/40 rounded-xl flex items-center justify-center">
-                    <Flame size={16} className="text-orange-400" />
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-gray-400">目標</p>
-                    <p className="text-sm font-semibold text-gray-100">{calorieTarget}</p>
-                  </div>
+      {/* This week progress */}
+      <div className="bg-gray-800 rounded-2xl p-4 mb-4">
+        <h2 className="text-xs font-semibold text-gray-400 mb-3">本週進度</h2>
+        <div className="grid grid-cols-7 gap-1">
+          {WORKOUT_TYPES.map(({ type, label, emoji, color }) => {
+            const done = completedTypes.has(type);
+            return (
+              <div key={type} className="flex flex-col items-center gap-1">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg
+                  ${done ? 'bg-emerald-500/20 ring-1 ring-emerald-500/50' : 'bg-gray-700/50'}`}>
+                  {done ? <span>{emoji}</span> : <span className="text-gray-600 text-base">{emoji}</span>}
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-red-900/40 rounded-xl flex items-center justify-center">
-                    <Zap size={16} className="text-red-400" />
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-gray-400">消耗</p>
-                    <p className="text-sm font-semibold text-gray-100">{summary.totalCaloriesOut}</p>
-                  </div>
-                </div>
-              </div>
-              <div className="h-px bg-gray-700" />
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] text-gray-400">淨卡路里</span>
-                <span className={`text-sm font-bold ${summary.netCalories > 0 ? 'text-orange-400' : 'text-emerald-400'}`}>
-                  {summary.netCalories > 0 ? '+' : ''}{Math.round(summary.netCalories)} kcal
+                <span className={`text-[9px] ${done ? color : 'text-gray-600'}`}>
+                  {label.length > 2 ? label.slice(0, 2) : label}
                 </span>
               </div>
-            </div>
-
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Macros */}
-      <Card className="mb-4">
-        <CardHeader>
-          <h2 className="text-sm font-semibold text-gray-200">今日營養素攝取進度</h2>
-        </CardHeader>
-        <CardContent className="pt-0 space-y-3">
-          <NutrientBar label="蛋白質 🥩" value={summary.totalProtein} target={proteinTarget || 150} color="#6366f1" />
-          <NutrientBar label="碳水化合物 🍚" value={summary.totalCarbs} target={Math.round(calorieTarget * 0.45 / 4) || 200} color="#f59e0b" />
-          <NutrientBar label="脂肪 🥑" value={summary.totalFat} target={Math.round(calorieTarget * 0.3 / 9) || 60} color="#ec4899" />
-        </CardContent>
-      </Card>
-
-      {/* Water Tracking */}
-      <Card className="mb-4">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Droplets size={16} className="text-blue-400" />
-              <h2 className="text-sm font-semibold text-gray-200">今日飲水</h2>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={`text-sm font-bold ${waterPct >= 100 ? 'text-emerald-400' : 'text-blue-400'}`}>
-                {totalWaterMl} <span className="text-xs font-normal text-gray-400">/ {waterTarget} ml</span>
-              </span>
-              {dayWater.length > 0 && (
-                <button
-                  onClick={handleDeleteLastWater}
-                  className="w-6 h-6 flex items-center justify-center rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-400"
-                  title="撤銷最後一筆"
-                >
-                  <Minus size={12} />
-                </button>
-              )}
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-0 space-y-3">
-          {/* Progress bar */}
-          <div className="h-3 bg-gray-700 rounded-full overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{
-                width: `${waterPct}%`,
-                background: waterPct >= 100 ? '#10b981' : 'linear-gradient(90deg, #3b82f6, #60a5fa)',
-              }}
-            />
-          </div>
-          {/* Quick-add buttons */}
-          <div className="flex gap-2">
-            {QUICK_ADD_ML.map((ml) => (
-              <button
-                key={ml}
-                onClick={() => handleAddWater(ml)}
-                className="flex-1 py-2 rounded-xl bg-blue-950/40 hover:bg-blue-900/50 border border-blue-800/50 text-blue-300 text-xs font-medium transition-colors"
-              >
-                +{ml >= 1000 ? `${ml / 1000}L` : `${ml}ml`}
-              </button>
+            );
+          })}
+        </div>
+        <div className="mt-3 flex items-center justify-between">
+          <span className="text-xs text-gray-500">
+            {completedTypes.size} / 7 完成
+          </span>
+          <div className="flex gap-1">
+            {[...Array(7)].map((_, i) => (
+              <div
+                key={i}
+                className={`h-1.5 w-6 rounded-full ${i < completedTypes.size ? 'bg-emerald-500' : 'bg-gray-700'}`}
+              />
             ))}
           </div>
-          {waterPct >= 100 && (
-            <p className="text-xs text-center text-emerald-400">🎉 今天飲水目標達成！</p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Weight + Prediction */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Scale size={16} className="text-blue-400" />
-              <span className="text-xs text-gray-400">最新體重</span>
-            </div>
-            {latestWeight ? (
-              <>
-                <p className="text-2xl font-bold text-gray-100">
-                  {latestWeight.weight} <span className="text-sm font-normal text-gray-400">kg</span>
-                </p>
-                <p className="text-xs text-gray-500 mt-1">{latestWeight.date}</p>
-              </>
-            ) : (
-              <Link href="/progress">
-                <Button variant="ghost" size="sm" className="text-xs p-0 h-auto mt-1">
-                  <Plus size={12} /> 記錄體重
-                </Button>
-              </Link>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-2 mb-2">
-              <TrendingUp size={16} className="text-purple-400" />
-              <span className="text-xs text-gray-400">月預測變化</span>
-            </div>
-            {!profile ? (
-              <p className="text-xs text-gray-500 mt-1">請先設定個人資料</p>
-            ) : usingRegression ? (
-              <>
-                <p className={`text-2xl font-bold ${monthlyChange > 0 ? 'text-orange-400' : 'text-emerald-400'}`}>
-                  {monthlyChange > 0 ? '+' : ''}{monthlyChange.toFixed(2)} <span className="text-sm font-normal text-gray-400">kg</span>
-                </p>
-                <p className="text-[10px] text-emerald-600 mt-1">
-                  📈 實測趨勢 · R²{(regressionResult!.r2 * 100).toFixed(0)}%
-                </p>
-                <p className="text-[11px] text-gray-500">
-                  {monthlyChange < -0.5 ? '減脂中 🔥' : monthlyChange > 0.5 ? '增肌中 💪' : '維持體重 ✅'}
-                </p>
-              </>
-            ) : !hasEnoughData ? (
-              <div className="mt-1">
-                <p className="text-xs text-gray-400 leading-snug">需 7 天連續記錄</p>
-                <p className="text-[11px] text-gray-600 mt-0.5">已連續 {sevenDayWindow.length} 天</p>
-              </div>
-            ) : (
-              <>
-                <p className={`text-2xl font-bold ${monthlyChange > 0 ? 'text-orange-400' : 'text-emerald-400'}`}>
-                  {monthlyChange > 0 ? '+' : ''}{monthlyChange.toFixed(2)} <span className="text-sm font-normal text-gray-400">kg</span>
-                </p>
-                {calorieFactor !== 7700 && (
-                  <p className="text-[10px] text-purple-400 mt-0.5">✦ 高蛋白+重訓修正</p>
-                )}
-                <p className="text-[11px] text-gray-500 mt-0.5">
-                  {monthlyChange < -0.5 ? '減脂中 🔥' : monthlyChange > 0.5 ? '增肌中 💪' : '維持體重 ✅'}
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
+        </div>
       </div>
 
-      {/* Today's meals */}
-      <Card className="mb-4">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-200">今日飲食</h2>
-            <Link href="/food">
-              <Button variant="ghost" size="sm" className="text-xs gap-1">
-                <Plus size={14} /> 新增
-              </Button>
-            </Link>
+      {/* Weight reminder */}
+      <div className={`rounded-2xl p-4 mb-4 ${daysSinceWeight === null || daysSinceWeight >= 7 ? 'bg-amber-900/30 border border-amber-700/40' : 'bg-gray-800'}`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-gray-300">體重記錄</p>
+            {lastWeight ? (
+              <p className="text-xs text-gray-400 mt-0.5">
+                {daysSinceWeight === 0 ? '今天已量' : `${daysSinceWeight} 天前 · ${lastWeight.weight} kg`}
+                {(daysSinceWeight ?? 0) >= 7 && <span className="text-amber-400 ml-1">⚠️ 該量體重了</span>}
+              </p>
+            ) : (
+              <p className="text-xs text-amber-400 mt-0.5">尚未記錄體重</p>
+            )}
           </div>
-        </CardHeader>
-        <CardContent className="pt-0">
-          {dayFood.length === 0 ? (
-            <p className="text-sm text-gray-500 text-center py-3">尚未記錄飲食</p>
-          ) : (
-            <div className="space-y-2">
-              {dayFood.slice(0, 4).map((entry) => (
-                <div key={entry.id} className="flex items-center justify-between py-1">
-                  <div className="flex items-center gap-2">
-                    {entry.category === 'liquid' ? (
-                      <Droplets size={14} className="text-blue-400" />
-                    ) : (
-                      <Utensils size={14} className="text-gray-500" />
-                    )}
-                    <span className="text-sm text-gray-200 truncate max-w-[150px]">{entry.name}</span>
-                    {entry.estimatedByAI && <Badge color="purple" className="text-[10px]">AI</Badge>}
-                  </div>
-                  <span className="text-xs font-medium text-gray-400">{entry.nutrition.calories} kcal</span>
-                </div>
-              ))}
-              {dayFood.length > 4 && (
-                <Link href="/food" className="block text-xs text-center text-emerald-400 pt-1">
-                  查看全部 {dayFood.length} 筆 →
-                </Link>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          <button
+            onClick={() => router.push('/progress')}
+            className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-xl text-xs font-medium text-white"
+          >
+            記錄
+          </button>
+        </div>
+      </div>
 
-      {/* Today's exercise */}
-      <Card className="mb-4">
-        <CardHeader>
+      {/* Next race */}
+      {nextRace && (
+        <div className="bg-gray-800 rounded-2xl p-4 mb-4">
+          <p className="text-xs font-semibold text-gray-400 mb-1">下一場賽事</p>
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-200">今日運動</h2>
-            <Link href="/exercise">
-              <Button variant="ghost" size="sm" className="text-xs gap-1">
-                <Plus size={14} /> 新增
-              </Button>
-            </Link>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-0">
-          {dayExercise.length === 0 ? (
-            <p className="text-sm text-gray-500 text-center py-3">尚未記錄運動</p>
-          ) : (
-            <div className="space-y-2">
-              {dayExercise.map((entry) => (
-                <div key={entry.id} className="flex items-center justify-between py-1">
-                  <span className="text-sm text-gray-200">{entry.name}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-400">{entry.duration} 分鐘</span>
-                    <span className="text-xs font-medium text-orange-400">-{entry.caloriesBurned} kcal</span>
-                  </div>
-                </div>
-              ))}
+            <div>
+              <p className="text-sm font-bold text-white">{nextRace.name}</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {nextRace.date} {nextRace.distance && `· ${nextRace.distance}`}
+              </p>
             </div>
-          )}
-        </CardContent>
-      </Card>
+            <div className="text-right">
+              <p className="text-2xl font-bold text-emerald-400">{daysToRace}</p>
+              <p className="text-[10px] text-gray-500">天後</p>
+            </div>
+          </div>
+        </div>
+      )}
 
-      {/* Night routine */}
-      <NightRoutineCard date={date} />
+      {/* Quick actions */}
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          onClick={() => router.push('/workout')}
+          className="bg-emerald-500 hover:bg-emerald-600 rounded-2xl p-4 text-left transition-colors"
+        >
+          <span className="text-2xl">🏃</span>
+          <p className="text-sm font-bold text-white mt-2">記錄運動</p>
+          <p className="text-xs text-emerald-100 mt-0.5">拍照或手動輸入</p>
+        </button>
+        <button
+          onClick={() => router.push('/events')}
+          className="bg-gray-800 hover:bg-gray-700 rounded-2xl p-4 text-left transition-colors"
+        >
+          <span className="text-2xl">🏆</span>
+          <p className="text-sm font-bold text-white mt-2">賽事管理</p>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {upcomingRaces.length > 0 ? `${upcomingRaces.length} 場即將到來` : '新增賽事'}
+          </p>
+        </button>
+      </div>
     </div>
   );
 }

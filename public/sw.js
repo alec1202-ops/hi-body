@@ -1,5 +1,5 @@
-const CACHE_NAME = 'hi-body-v23';
-const STATIC_ASSETS = ['/', '/food', '/exercise', '/supplements', '/progress', '/profile'];
+const CACHE_NAME = 'hi-body-v24';
+const STATIC_ASSETS = ['/', '/workout', '/progress', '/events', '/profile'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

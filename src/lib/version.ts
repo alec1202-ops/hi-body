@@ -1,6 +1,7 @@
-export const APP_VERSION = '1.9.0';
-export const APP_BUILD_DATE = '2026-07-08';
+export const APP_VERSION = '2.0.0';
+export const APP_BUILD_DATE = '2026-10-26';
 // Changelog:
+// 2.0.0 (2026-10-26) — Hi Body 2.0：全新運動規劃 APP，7種運動週計畫、拉筋導引、賽事管理、體重追蹤
 // 1.9.0 (2026-07-08) — 移除 Strava 整合（Strava 已將 API 改為付費訂閱制）
 // 1.8.9 (2026-07-08) — Strava 403：顯示詳細錯誤原因、偵測授權範圍不足並提示使用者
 // 1.8.8 (2026-07-08) — 登入頁新增忘記密碼功能：寄送重設連結，並新增重設密碼頁面

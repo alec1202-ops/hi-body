@@ -2,16 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, UtensilsCrossed, Dumbbell, TrendingUp, User, Brain, Pill } from 'lucide-react';
+import { Home, Dumbbell, TrendingUp, Trophy, User } from 'lucide-react';
 
 const tabs = [
-  { href: '/', label: '總覽', icon: LayoutDashboard },
-  { href: '/food', label: '飲食', icon: UtensilsCrossed },
-  { href: '/exercise', label: '運動', icon: Dumbbell },
-  { href: '/supplements', label: '補充品', icon: Pill },
+  { href: '/',         label: '今天', icon: Home },
+  { href: '/workout',  label: '運動', icon: Dumbbell },
   { href: '/progress', label: '進度', icon: TrendingUp },
-  { href: '/health', label: 'AI診斷', icon: Brain },
-  { href: '/profile', label: '我的', icon: User },
+  { href: '/events',   label: '賽事', icon: Trophy },
+  { href: '/profile',  label: '我的', icon: User },
 ];
 
 export function BottomNav() {
