@@ -480,8 +480,8 @@ function WeekStrip({ selectedDate, onSelect, workoutEntries }: {
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = addDays(monday, i);
     const str = format(d, 'yyyy-MM-dd');
-    const entry = workoutEntries.find((e) => e.date === str);
-    return { str, d, entry };
+    const entries = workoutEntries.filter((e) => e.date === str);
+    return { str, d, entries };
   });
 
   const dayNames = ['一', '二', '三', '四', '五', '六', '日'];
@@ -498,10 +498,10 @@ function WeekStrip({ selectedDate, onSelect, workoutEntries }: {
           className="p-1 text-gray-400 hover:text-white disabled:opacity-30"><ChevronRight size={16} /></button>
       </div>
       <div className="grid grid-cols-7 gap-1">
-        {days.map(({ str, d, entry }, i) => {
+        {days.map(({ str, d, entries }, i) => {
           const isToday = str === today;
           const isSelected = str === selectedDate;
-          const wType = entry ? (entry.actualType ?? entry.type) : null;
+          const emojis = entries.map((e) => WORKOUT_META[e.actualType ?? e.type]?.emoji).filter(Boolean);
           return (
             <button key={str} onClick={() => onSelect(str)}
               className={`flex flex-col items-center gap-1 py-2 rounded-xl transition-colors
@@ -512,9 +512,15 @@ function WeekStrip({ selectedDate, onSelect, workoutEntries }: {
               <span className={`text-[10px] ${isToday ? 'text-emerald-400' : 'text-gray-600'}`}>
                 {format(d, 'd')}
               </span>
-              <span className="text-base leading-none">
-                {wType ? WORKOUT_META[wType]?.emoji : '·'}
-              </span>
+              {emojis.length === 0 ? (
+                <span className="text-base leading-none">·</span>
+              ) : emojis.length === 1 ? (
+                <span className="text-base leading-none">{emojis[0]}</span>
+              ) : (
+                <span className="text-[9px] leading-tight text-center">
+                  {emojis.join('')}
+                </span>
+              )}
             </button>
           );
         })}

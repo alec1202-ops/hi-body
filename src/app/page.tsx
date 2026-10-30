@@ -41,8 +41,8 @@ export default function TodayPage() {
   const allTypes: WorkoutType[] = ['swim', 'run', 'cycling', 'gym', 'stretch', 'rest', 'free'];
   const remainingTypes = allTypes.filter((t) => !completedTypes.has(t));
 
-  // Today's entry (if any)
-  const todayEntry = workoutEntries.find((e) => e.date === today);
+  // Today's entries (may be multiple)
+  const todayEntries = workoutEntries.filter((e) => e.date === today);
 
   // Last weight entry
   const sortedWeights = [...weightEntries].sort((a, b) => b.date.localeCompare(a.date));
@@ -73,23 +73,23 @@ export default function TodayPage() {
 
       {/* Today's status */}
       <div className="bg-gray-800 rounded-2xl p-4 mb-4">
-        {todayEntry ? (
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">
-              {WORKOUT_TYPES.find((w) =>
-                w.type === (todayEntry.actualType ?? todayEntry.type)
-              )?.emoji ?? '✅'}
-            </span>
-            <div>
-              <p className="text-sm font-semibold text-white">
-                今天已完成{' '}
-                {WORKOUT_TYPES.find((w) =>
-                  w.type === (todayEntry.actualType ?? todayEntry.type)
-                )?.label}
-                {todayEntry.duration > 0 && ` · ${todayEntry.duration} 分鐘`}
-              </p>
-              <p className="text-xs text-emerald-400 mt-0.5">繼續保持 💪</p>
-            </div>
+        {todayEntries.length > 0 ? (
+          <div className="space-y-2">
+            {todayEntries.map((entry) => {
+              const w = WORKOUT_TYPES.find((x) => x.type === (entry.actualType ?? entry.type));
+              return (
+                <div key={entry.id} className="flex items-center gap-3">
+                  <span className="text-2xl">{w?.emoji ?? '✅'}</span>
+                  <div>
+                    <p className="text-sm font-semibold text-white">
+                      {w?.label}
+                      {entry.duration > 0 && <span className="text-gray-400 font-normal"> · {entry.duration} 分鐘</span>}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+            <p className="text-xs text-emerald-400 pt-1">繼續保持 💪</p>
           </div>
         ) : (
           <div>
