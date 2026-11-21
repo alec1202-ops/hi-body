@@ -5,11 +5,18 @@ import { persist } from 'zustand/middleware';
 import type { UserProfile, WeightEntry, WorkoutEntry, RaceEvent } from '@/types';
 import * as db from './db';
 
+export interface GymPackage {
+  total: number;       // e.g. 36
+  startDate: string;   // YYYY-MM-DD
+  label?: string;      // e.g. "2026年健身課"
+}
+
 interface AppState {
   profile: UserProfile | null;
   weightEntries: WeightEntry[];
   workoutEntries: WorkoutEntry[];
   raceEvents: RaceEvent[];
+  gymPackage: GymPackage | null;
   userId: string | null;
 
   setUserId: (id: string | null) => void;
@@ -17,6 +24,7 @@ interface AppState {
   clearLocalData: () => void;
 
   setProfile: (profile: UserProfile) => void;
+  setGymPackage: (pkg: GymPackage | null) => void;
 
   addWeightEntry: (entry: WeightEntry) => void;
   updateWeightEntry: (id: string, entry: Partial<WeightEntry>) => void;
@@ -38,6 +46,7 @@ export const useAppStore = create<AppState>()(
       weightEntries: [],
       workoutEntries: [],
       raceEvents: [],
+      gymPackage: null,
       userId: null,
 
       setUserId: (userId) => set({ userId }),
@@ -70,8 +79,11 @@ export const useAppStore = create<AppState>()(
         weightEntries: [],
         workoutEntries: [],
         raceEvents: [],
+        gymPackage: null,
         userId: null,
       }),
+
+      setGymPackage: (pkg) => set({ gymPackage: pkg }),
 
       setProfile: (profile) => {
         set({ profile });
