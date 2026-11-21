@@ -45,6 +45,7 @@ export interface WorkoutEntry {
   swimPoolType?: 'pool' | 'open';
   runDistance?: number;    // km
   cyclingDistance?: number; // km
+  gymTitle?: string;    // e.g. "腿部訓練", "核心課", "HIIT"
   gymExercises?: GymSet[];
 }
 

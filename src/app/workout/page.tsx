@@ -175,6 +175,61 @@ function StretchGuide({ onComplete }: { onComplete: (duration: number) => void }
   );
 }
 
+// ─── Gym row (local string state so iOS cursor never jumps) ──────────────────
+
+function GymRow({ row, onChange, onDelete }: {
+  row: GymSet;
+  onChange: (r: GymSet) => void;
+  onDelete: () => void;
+}) {
+  const [sets, setSets]     = useState(String(row.sets ?? 3));
+  const [reps, setReps]     = useState(row.reps != null ? String(row.reps) : '');
+  const [weight, setWeight] = useState(row.weight != null ? String(row.weight) : '');
+
+  const numCls = 'w-full px-2 py-1.5 bg-gray-600 border border-gray-500 rounded-lg text-xs text-white focus:outline-none text-center';
+
+  function commit(field: 'sets' | 'reps' | 'weight', raw: string) {
+    const v = parseFloat(raw);
+    if (field === 'sets')   onChange({ ...row, sets:   isNaN(v) ? row.sets   : v });
+    if (field === 'reps')   onChange({ ...row, reps:   isNaN(v) ? undefined  : v });
+    if (field === 'weight') onChange({ ...row, weight: isNaN(v) ? undefined  : v });
+  }
+
+  return (
+    <div className="bg-gray-700 rounded-xl p-3 space-y-2">
+      <div className="flex items-center gap-2">
+        <input value={row.exercise}
+          onChange={(e) => onChange({ ...row, exercise: e.target.value })}
+          placeholder="動作名稱（例：深蹲）"
+          className="flex-1 px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-xs text-white focus:outline-none" />
+        <button onClick={onDelete} className="text-gray-500 hover:text-red-400 flex-shrink-0">
+          <Trash2 size={14} />
+        </button>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <div>
+          <p className="text-[10px] text-gray-500 mb-1">組數</p>
+          <input type="text" inputMode="numeric" pattern="[0-9]*"
+            value={sets} onChange={(e) => setSets(e.target.value)}
+            onBlur={(e) => commit('sets', e.target.value)} className={numCls} />
+        </div>
+        <div>
+          <p className="text-[10px] text-gray-500 mb-1">次數</p>
+          <input type="text" inputMode="numeric" pattern="[0-9]*"
+            value={reps} onChange={(e) => setReps(e.target.value)}
+            onBlur={(e) => commit('reps', e.target.value)} className={numCls} />
+        </div>
+        <div>
+          <p className="text-[10px] text-gray-500 mb-1">重量 kg</p>
+          <input type="text" inputMode="decimal" pattern="[0-9.]*"
+            value={weight} onChange={(e) => setWeight(e.target.value)}
+            onBlur={(e) => commit('weight', e.target.value)} className={numCls} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Log form ─────────────────────────────────────────────────────────────────
 
 function LogForm({ date, onSave, onClose }: { date: string; onSave: (e: Omit<WorkoutEntry, 'id' | 'timestamp'>) => void; onClose: () => void }) {
@@ -187,6 +242,7 @@ function LogForm({ date, onSave, onClose }: { date: string; onSave: (e: Omit<Wor
   const [swimPool, setSwimPool] = useState<'pool' | 'open'>('pool');
   const [runDist, setRunDist] = useState('');
   const [cycleDist, setCycleDist] = useState('');
+  const [gymTitle, setGymTitle] = useState('');
   const [gymExercises, setGymExercises] = useState<GymSet[]>([{ exercise: '', sets: 3, reps: 10, weight: undefined }]);
   const [photo, setPhoto] = useState<{ base64: string; mimeType: string; preview: string } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -239,6 +295,7 @@ function LogForm({ date, onSave, onClose }: { date: string; onSave: (e: Omit<Wor
       swimPoolType: effectiveType === 'swim' ? swimPool : undefined,
       runDistance: effectiveType === 'run' ? (parseFloat(runDist) || undefined) : undefined,
       cyclingDistance: effectiveType === 'cycling' ? (parseFloat(cycleDist) || undefined) : undefined,
+      gymTitle: effectiveType === 'gym' ? (gymTitle.trim() || undefined) : undefined,
       gymExercises: effectiveType === 'gym' ? gymExercises.filter((g) => g.exercise.trim()) : undefined,
     };
     onSave(entry);
@@ -403,43 +460,29 @@ function LogForm({ date, onSave, onClose }: { date: string; onSave: (e: Omit<Wor
 
               {/* Gym fields */}
               {effectiveType === 'gym' && (
-                <div>
-                  <p className="text-xs text-gray-400 mb-1.5">訓練動作</p>
-                  <div className="space-y-2">
-                    {gymExercises.map((g, i) => (
-                      <div key={i} className="bg-gray-700 rounded-xl p-3 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <input value={g.exercise} onChange={(e) => {
-                            const next = [...gymExercises]; next[i] = { ...g, exercise: e.target.value };
-                            setGymExercises(next);
-                          }} placeholder="動作名稱（例：深蹲）"
-                            className="flex-1 px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-xs text-white focus:outline-none" />
-                          <button onClick={() => setGymExercises(gymExercises.filter((_, j) => j !== i))}
-                            className="text-gray-500 hover:text-red-400"><Trash2 size={14} /></button>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          {[
-                            { label: '組數', key: 'sets', val: g.sets },
-                            { label: '次數', key: 'reps', val: g.reps },
-                            { label: '重量 kg', key: 'weight', val: g.weight },
-                          ].map(({ label, key, val }) => (
-                            <div key={key}>
-                              <p className="text-[10px] text-gray-500 mb-1">{label}</p>
-                              <input type="number" value={val ?? ''} onChange={(e) => {
-                                const next = [...gymExercises];
-                                next[i] = { ...g, [key]: e.target.value ? parseFloat(e.target.value) : undefined };
-                                setGymExercises(next);
-                              }}
-                                className="w-full px-2 py-1.5 bg-gray-600 border border-gray-500 rounded-lg text-xs text-white focus:outline-none text-center" />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                    <button onClick={() => setGymExercises([...gymExercises, { exercise: '', sets: 3, reps: 10 }])}
-                      className="flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300">
-                      <Plus size={14} /> 新增動作
-                    </button>
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1.5">課程名稱（選填）</p>
+                    <input type="text" value={gymTitle} onChange={(e) => setGymTitle(e.target.value)}
+                      placeholder="例：腿部訓練、核心課、胸背日"
+                      className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-400" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1.5">訓練動作</p>
+                    <div className="space-y-2">
+                      {gymExercises.map((g, i) => (
+                        <GymRow key={i} row={g}
+                          onChange={(updated) => {
+                            const next = [...gymExercises]; next[i] = updated; setGymExercises(next);
+                          }}
+                          onDelete={() => setGymExercises(gymExercises.filter((_, j) => j !== i))}
+                        />
+                      ))}
+                      <button onClick={() => setGymExercises([...gymExercises, { exercise: '', sets: 3, reps: 10 }])}
+                        className="flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300">
+                        <Plus size={14} /> 新增動作
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -612,13 +655,16 @@ export default function WorkoutPage() {
                   </button>
                 </div>
 
-                {/* Gym exercises */}
-                {entry.gymExercises && entry.gymExercises.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-gray-700 space-y-1">
-                    {entry.gymExercises.map((g, i) => (
+                {/* Gym title + exercises */}
+                {(entry.gymTitle || (entry.gymExercises && entry.gymExercises.length > 0)) && (
+                  <div className="mt-3 pt-3 border-t border-gray-700 space-y-1.5">
+                    {entry.gymTitle && (
+                      <p className="text-xs font-semibold text-purple-300 mb-1.5">📋 {entry.gymTitle}</p>
+                    )}
+                    {entry.gymExercises?.map((g, i) => (
                       <div key={i} className="flex justify-between text-xs text-gray-400">
-                        <span>{g.exercise}</span>
-                        <span>
+                        <span className="text-gray-200">{g.exercise}</span>
+                        <span className="text-gray-400 tabular-nums">
                           {g.sets}組{g.reps ? ` × ${g.reps}次` : ''}
                           {g.weight ? ` · ${g.weight}kg` : ''}
                         </span>
