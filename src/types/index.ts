@@ -16,6 +16,8 @@ export interface WeightEntry {
   muscleMass?: number; // kg
   boneMass?: number; // kg (kept for data compatibility)
   bodyWater?: number; // % (kept for data compatibility)
+  visceralFat?: number; // 內臟脂肪程度 1–20
+  waistCm?: number;    // 腰圍 cm
   notes?: string;
 }
 

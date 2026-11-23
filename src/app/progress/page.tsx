@@ -189,6 +189,8 @@ function WeightForm({ onSave, onClose }: { onSave: (e: Omit<WeightEntry, 'id'>) 
   const [weight, setWeight] = useState('');
   const [bodyFat, setBodyFat] = useState('');
   const [muscleMass, setMuscleMass] = useState('');
+  const [visceralFat, setVisceralFat] = useState('');
+  const [waistCm, setWaistCm] = useState('');
   const [notes, setNotes] = useState('');
 
   function handleSave() {
@@ -198,9 +200,13 @@ function WeightForm({ onSave, onClose }: { onSave: (e: Omit<WeightEntry, 'id'>) 
       weight: parseFloat(weight),
       bodyFat: bodyFat ? parseFloat(bodyFat) : undefined,
       muscleMass: muscleMass ? parseFloat(muscleMass) : undefined,
+      visceralFat: visceralFat ? parseFloat(visceralFat) : undefined,
+      waistCm: waistCm ? parseFloat(waistCm) : undefined,
       notes: notes || undefined,
     });
   }
+
+  const field = 'w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-400';
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col">
@@ -218,32 +224,42 @@ function WeightForm({ onSave, onClose }: { onSave: (e: Omit<WeightEntry, 'id'>) 
         <div className="overflow-y-auto flex-1 px-5 pb-8 pt-5 space-y-4">
           <div>
             <p className="text-xs text-gray-400 mb-1.5">日期</p>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-400" />
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={field} />
           </div>
           <div>
             <p className="text-xs text-gray-400 mb-1.5">體重（kg）</p>
-            <input type="text" inputMode="decimal" pattern="[0-9.]*" value={weight} onChange={(e) => setWeight(e.target.value)}
-              placeholder="例：72.5" autoFocus
-              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-400" />
+            <input type="text" inputMode="decimal" value={weight} onChange={(e) => setWeight(e.target.value)}
+              placeholder="例：72.5" autoFocus className={field} />
           </div>
-          <div>
-            <p className="text-xs text-gray-400 mb-1.5">體脂率（%，選填）</p>
-            <input type="text" inputMode="decimal" pattern="[0-9.]*" value={bodyFat} onChange={(e) => setBodyFat(e.target.value)}
-              placeholder="例：18.5"
-              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-400" />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <p className="text-xs text-gray-400 mb-1.5">體脂率（%）</p>
+              <input type="text" inputMode="decimal" value={bodyFat} onChange={(e) => setBodyFat(e.target.value)}
+                placeholder="例：22.2" className={field} />
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 mb-1.5">骨骼肌肉量（kg）</p>
+              <input type="text" inputMode="decimal" value={muscleMass} onChange={(e) => setMuscleMass(e.target.value)}
+                placeholder="例：53.9" className={field} />
+            </div>
           </div>
-          <div>
-            <p className="text-xs text-gray-400 mb-1.5">骨骼肌肉量（kg，選填）</p>
-            <input type="text" inputMode="decimal" pattern="[0-9.]*" value={muscleMass} onChange={(e) => setMuscleMass(e.target.value)}
-              placeholder="例：35.2"
-              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-400" />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <p className="text-xs text-gray-400 mb-1.5">內臟脂肪程度（1–20）</p>
+              <input type="text" inputMode="numeric" value={visceralFat} onChange={(e) => setVisceralFat(e.target.value)}
+                placeholder="例：9" className={field} />
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 mb-1.5">腰圍（cm）</p>
+              <input type="text" inputMode="decimal" value={waistCm} onChange={(e) => setWaistCm(e.target.value)}
+                placeholder="例：90.1" className={field} />
+            </div>
           </div>
           <div>
             <p className="text-xs text-gray-400 mb-1.5">備註（選填）</p>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)}
-              placeholder="例：早晨空腹量" rows={2}
-              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-400 resize-none" />
+              placeholder="例：早晨空腹量、ACCUNIQ BC380" rows={2}
+              className={`${field} resize-none`} />
           </div>
         </div>
       </div>
@@ -405,6 +421,8 @@ export default function ProgressPage() {
                     {format(new Date(e.date + 'T00:00:00'), 'M月d日 EEE', { locale: zhTW })}
                     {e.bodyFat && ` · 體脂 ${e.bodyFat}%`}
                     {e.muscleMass && ` · 肌肉 ${e.muscleMass}kg`}
+                    {e.visceralFat && ` · 內臟${e.visceralFat}`}
+                    {e.waistCm && ` · 腰${e.waistCm}cm`}
                   </p>
                 </div>
                 <button onClick={() => deleteWeightEntry(e.id)} className="text-gray-600 hover:text-red-400">
