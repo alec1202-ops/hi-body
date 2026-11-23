@@ -48,6 +48,7 @@ export async function upsertWeightEntry(userId: string, entry: WeightEntry) {
     body_water: entry.bodyWater ?? null,
     visceral_fat: entry.visceralFat ?? null,
     waist_cm: entry.waistCm ?? null,
+    segmental_muscle: entry.segmentalMuscle ?? null,
     notes: entry.notes ?? null,
   });
 }
@@ -70,6 +71,7 @@ export async function fetchWeightEntries(userId: string): Promise<WeightEntry[]>
     bodyWater: r.body_water ?? undefined,
     visceralFat: r.visceral_fat ?? undefined,
     waistCm: r.waist_cm ?? undefined,
+    segmentalMuscle: r.segmental_muscle ?? undefined,
     notes: r.notes ?? undefined,
   }));
 }

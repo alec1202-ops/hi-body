@@ -191,10 +191,22 @@ function WeightForm({ onSave, onClose }: { onSave: (e: Omit<WeightEntry, 'id'>) 
   const [muscleMass, setMuscleMass] = useState('');
   const [visceralFat, setVisceralFat] = useState('');
   const [waistCm, setWaistCm] = useState('');
+  const [armR, setArmR] = useState('');
+  const [armL, setArmL] = useState('');
+  const [trunk, setTrunk] = useState('');
+  const [legR, setLegR] = useState('');
+  const [legL, setLegL] = useState('');
   const [notes, setNotes] = useState('');
 
   function handleSave() {
     if (!weight) return;
+    const seg = armR || armL || trunk || legR || legL ? {
+      armR: parseFloat(armR) || 0,
+      armL: parseFloat(armL) || 0,
+      trunk: parseFloat(trunk) || 0,
+      legR: parseFloat(legR) || 0,
+      legL: parseFloat(legL) || 0,
+    } : undefined;
     onSave({
       date,
       weight: parseFloat(weight),
@@ -202,6 +214,7 @@ function WeightForm({ onSave, onClose }: { onSave: (e: Omit<WeightEntry, 'id'>) 
       muscleMass: muscleMass ? parseFloat(muscleMass) : undefined,
       visceralFat: visceralFat ? parseFloat(visceralFat) : undefined,
       waistCm: waistCm ? parseFloat(waistCm) : undefined,
+      segmentalMuscle: seg,
       notes: notes || undefined,
     });
   }
@@ -241,6 +254,25 @@ function WeightForm({ onSave, onClose }: { onSave: (e: Omit<WeightEntry, 'id'>) 
               <p className="text-xs text-gray-400 mb-1.5">骨骼肌肉量（kg）</p>
               <input type="text" inputMode="decimal" value={muscleMass} onChange={(e) => setMuscleMass(e.target.value)}
                 placeholder="例：53.9" className={field} />
+            </div>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 mb-1.5">區段性肌肉（kg，選填）</p>
+            <div className="grid grid-cols-2 gap-2">
+              <input type="text" inputMode="decimal" value={armR} onChange={(e) => setArmR(e.target.value)}
+                placeholder="右臂" className={field} />
+              <input type="text" inputMode="decimal" value={armL} onChange={(e) => setArmL(e.target.value)}
+                placeholder="左臂" className={field} />
+            </div>
+            <div className="mt-2">
+              <input type="text" inputMode="decimal" value={trunk} onChange={(e) => setTrunk(e.target.value)}
+                placeholder="軀幹" className={field} />
+            </div>
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <input type="text" inputMode="decimal" value={legR} onChange={(e) => setLegR(e.target.value)}
+                placeholder="右腿" className={field} />
+              <input type="text" inputMode="decimal" value={legL} onChange={(e) => setLegL(e.target.value)}
+                placeholder="左腿" className={field} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -424,6 +456,11 @@ export default function ProgressPage() {
                     {e.visceralFat && ` · 內臟${e.visceralFat}`}
                     {e.waistCm && ` · 腰${e.waistCm}cm`}
                   </p>
+                  {e.segmentalMuscle && (
+                    <p className="text-[10px] text-gray-600 mt-0.5 tabular-nums">
+                      臂 {e.segmentalMuscle.armR}/{e.segmentalMuscle.armL} · 幹 {e.segmentalMuscle.trunk} · 腿 {e.segmentalMuscle.legR}/{e.segmentalMuscle.legL} kg
+                    </p>
+                  )}
                 </div>
                 <button onClick={() => deleteWeightEntry(e.id)} className="text-gray-600 hover:text-red-400">
                   <Trash2 size={14} />

@@ -18,6 +18,13 @@ export interface WeightEntry {
   bodyWater?: number; // % (kept for data compatibility)
   visceralFat?: number; // 內臟脂肪程度 1–20
   waistCm?: number;    // 腰圍 cm
+  segmentalMuscle?: {  // 區段性肌肉重量 kg
+    armR: number;
+    armL: number;
+    trunk: number;
+    legR: number;
+    legL: number;
+  };
   notes?: string;
 }
 

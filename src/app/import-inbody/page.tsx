@@ -13,6 +13,7 @@ const ENTRY = {
   muscleMass: 53.87, // 右臂3.40+左臂3.29+軀幹26.61+右腿10.30+左腿10.27
   visceralFat: 9,
   waistCm: 90.1,
+  segmentalMuscle: { armR: 3.40, armL: 3.29, trunk: 26.61, legR: 10.30, legL: 10.27 },
   notes: 'ACCUNIQ BC380，健康評分78分，基礎代謝率1733kcal，目標體重76.5kg',
 };
 
@@ -59,7 +60,10 @@ export default function ImportInBodyPage() {
             ['體重', `${ENTRY.weight} kg`],
             ['BMI', String(ENTRY.bmi)],
             ['體脂率', `${ENTRY.bodyFat}%`],
-            ['骨骼肌肉量', `${ENTRY.muscleMass} kg`],
+            ['骨骼肌肉量（總）', `${ENTRY.muscleMass} kg`],
+            ['　右臂 / 左臂', `${ENTRY.segmentalMuscle.armR} / ${ENTRY.segmentalMuscle.armL} kg`],
+            ['　軀幹', `${ENTRY.segmentalMuscle.trunk} kg`],
+            ['　右腿 / 左腿', `${ENTRY.segmentalMuscle.legR} / ${ENTRY.segmentalMuscle.legL} kg`],
             ['內臟脂肪程度', String(ENTRY.visceralFat)],
             ['腰圍', `${ENTRY.waistCm} cm`],
             ['目標體重（個人資料）', `${PROFILE_UPDATE.targetWeight} kg`],
