@@ -56,20 +56,44 @@ export const useAppStore = create<AppState>()(
         const snapshot = get();
         const data = await db.fetchAllUserData(userId);
 
+        // Upload local-only entries not yet in cloud
         const cloudWeightIds = new Set(data.weightEntries.map((e) => e.id));
         snapshot.weightEntries
           .filter((e) => !cloudWeightIds.has(e.id))
           .forEach((e) => db.upsertWeightEntry(userId, e));
+
+        const cloudWorkoutIds = new Set(data.workoutEntries.map((e) => e.id));
+        snapshot.workoutEntries
+          .filter((e) => !cloudWorkoutIds.has(e.id))
+          .forEach((e) => db.upsertWorkoutEntry(userId, e));
+
+        const cloudRaceIds = new Set(data.raceEvents.map((e) => e.id));
+        snapshot.raceEvents
+          .filter((e) => !cloudRaceIds.has(e.id))
+          .forEach((e) => db.upsertRaceEvent(userId, e));
+
         if (snapshot.profile && !data.profile) db.upsertProfile(userId, snapshot.profile);
+        if (snapshot.gymPackage && !data.gymPackage) db.upsertGymPackage(userId, snapshot.gymPackage);
 
         set((current) => {
           const mergedWeight = [
             ...data.weightEntries,
             ...current.weightEntries.filter((e) => !cloudWeightIds.has(e.id)),
           ];
+          const mergedWorkouts = [
+            ...data.workoutEntries,
+            ...current.workoutEntries.filter((e) => !cloudWorkoutIds.has(e.id)),
+          ];
+          const mergedRaces = [
+            ...data.raceEvents,
+            ...current.raceEvents.filter((e) => !cloudRaceIds.has(e.id)),
+          ];
           return {
             profile: data.profile ?? current.profile,
             weightEntries: mergedWeight.length > 0 ? mergedWeight : current.weightEntries,
+            workoutEntries: mergedWorkouts.length > 0 ? mergedWorkouts : current.workoutEntries,
+            raceEvents: mergedRaces.length > 0 ? mergedRaces : current.raceEvents,
+            gymPackage: data.gymPackage ?? current.gymPackage,
           };
         });
       },
@@ -83,7 +107,14 @@ export const useAppStore = create<AppState>()(
         userId: null,
       }),
 
-      setGymPackage: (pkg) => set({ gymPackage: pkg }),
+      setGymPackage: (pkg) => {
+        set({ gymPackage: pkg });
+        const { userId } = get();
+        if (userId) {
+          if (pkg) db.upsertGymPackage(userId, pkg);
+          else db.deleteGymPackageDb(userId);
+        }
+      },
 
       setProfile: (profile) => {
         set({ profile });
@@ -107,17 +138,41 @@ export const useAppStore = create<AppState>()(
         db.deleteWeightEntryDb(id);
       },
 
-      addWorkoutEntry: (entry) => set((s) => ({ workoutEntries: [...s.workoutEntries, entry] })),
-      updateWorkoutEntry: (id, entry) => set((s) => ({
-        workoutEntries: s.workoutEntries.map((e) => e.id === id ? { ...e, ...entry } : e),
-      })),
-      deleteWorkoutEntry: (id) => set((s) => ({ workoutEntries: s.workoutEntries.filter((e) => e.id !== id) })),
+      addWorkoutEntry: (entry) => {
+        set((s) => ({ workoutEntries: [...s.workoutEntries, entry] }));
+        const { userId } = get();
+        if (userId) db.upsertWorkoutEntry(userId, entry);
+      },
+      updateWorkoutEntry: (id, partial) => {
+        set((s) => ({
+          workoutEntries: s.workoutEntries.map((e) => e.id === id ? { ...e, ...partial } : e),
+        }));
+        const { userId, workoutEntries } = get();
+        const updated = workoutEntries.find((e) => e.id === id);
+        if (userId && updated) db.upsertWorkoutEntry(userId, updated);
+      },
+      deleteWorkoutEntry: (id) => {
+        set((s) => ({ workoutEntries: s.workoutEntries.filter((e) => e.id !== id) }));
+        db.deleteWorkoutEntryDb(id);
+      },
 
-      addRaceEvent: (event) => set((s) => ({ raceEvents: [...s.raceEvents, event] })),
-      updateRaceEvent: (id, event) => set((s) => ({
-        raceEvents: s.raceEvents.map((e) => e.id === id ? { ...e, ...event } : e),
-      })),
-      deleteRaceEvent: (id) => set((s) => ({ raceEvents: s.raceEvents.filter((e) => e.id !== id) })),
+      addRaceEvent: (event) => {
+        set((s) => ({ raceEvents: [...s.raceEvents, event] }));
+        const { userId } = get();
+        if (userId) db.upsertRaceEvent(userId, event);
+      },
+      updateRaceEvent: (id, partial) => {
+        set((s) => ({
+          raceEvents: s.raceEvents.map((e) => e.id === id ? { ...e, ...partial } : e),
+        }));
+        const { userId, raceEvents } = get();
+        const updated = raceEvents.find((e) => e.id === id);
+        if (userId && updated) db.upsertRaceEvent(userId, updated);
+      },
+      deleteRaceEvent: (id) => {
+        set((s) => ({ raceEvents: s.raceEvents.filter((e) => e.id !== id) }));
+        db.deleteRaceEventDb(id);
+      },
     }),
     {
       name: 'hi-body-store-v3',
