@@ -58,6 +58,44 @@ export interface WorkoutEntry {
   gymExercises?: GymSet[];
 }
 
+// ─── Health Check ─────────────────────────────────────────────────────────────
+
+export interface HealthCheckEntry {
+  id: string;
+  date: string; // YYYY-MM-DD
+  // 糖尿病 / 代謝
+  fastingGlucose?: number;  // 飯前血糖 mg/dL
+  hba1c?: number;           // HbA1C %
+  insulin?: number;         // 胰島素IRI uIU/ml
+  homaIr?: number;          // 胰島素阻抗 HOMA-IR
+  // 血脂
+  triglyceride?: number;    // 三酸甘油脂 mg/dL
+  cholesterol?: number;     // 總膽固醇 mg/dL
+  hdl?: number;             // HDL mg/dL
+  ldl?: number;             // LDL mg/dL
+  cholHdlRatio?: number;    // 膽固醇/HDL比
+  ldlHdlRatio?: number;     // LDL/HDL比
+  // 肝功能
+  sgot?: number;            // AST U/L
+  sgpt?: number;            // ALT U/L
+  ggt?: number;             // r-GT U/L
+  alp?: number;             // ALP U/L
+  // 腎功能
+  bun?: number;             // 尿素氮 mg/dL
+  creatinine?: number;      // 肌酸酐 mg/dL
+  egfr?: number;            // eGFR
+  // 心血管
+  homocysteine?: number;    // 同半胱胺酸 umol/L
+  hsCrp?: number;           // hs-CRP mg/L
+  ldh?: number;             // LDH U/L
+  // 其他
+  uricAcid?: number;        // 尿酸 mg/dL
+  bodyFatPct?: number;      // 體脂肪% (檢查報告)
+  psa?: number;             // PSA ng/mL
+  // 定性發現（文字）
+  notes?: string;
+}
+
 // ─── Race Events ──────────────────────────────────────────────────────────────
 
 export type RaceType = 'run' | 'swim' | 'triathlon' | 'cycling' | 'other';

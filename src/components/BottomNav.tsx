@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Dumbbell, TrendingUp, Trophy, User } from 'lucide-react';
+import { Home, Dumbbell, TrendingUp, Trophy, User, HeartPulse } from 'lucide-react';
 
 const tabs = [
   { href: '/',         label: '今天', icon: Home },
   { href: '/workout',  label: '運動', icon: Dumbbell },
   { href: '/progress', label: '進度', icon: TrendingUp },
+  { href: '/health',   label: '健康', icon: HeartPulse },
   { href: '/events',   label: '賽事', icon: Trophy },
   { href: '/profile',  label: '我的', icon: User },
 ];

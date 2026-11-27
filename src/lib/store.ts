@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { UserProfile, WeightEntry, WorkoutEntry, RaceEvent } from '@/types';
+import type { UserProfile, WeightEntry, WorkoutEntry, RaceEvent, HealthCheckEntry } from '@/types';
 import * as db from './db';
 
 export interface GymPackage {
@@ -16,6 +16,7 @@ interface AppState {
   weightEntries: WeightEntry[];
   workoutEntries: WorkoutEntry[];
   raceEvents: RaceEvent[];
+  healthChecks: HealthCheckEntry[];
   gymPackage: GymPackage | null;
   userId: string | null;
 
@@ -37,6 +38,9 @@ interface AppState {
   addRaceEvent: (event: RaceEvent) => void;
   updateRaceEvent: (id: string, event: Partial<RaceEvent>) => void;
   deleteRaceEvent: (id: string) => void;
+
+  addHealthCheck: (entry: HealthCheckEntry) => void;
+  deleteHealthCheck: (id: string) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -46,6 +50,7 @@ export const useAppStore = create<AppState>()(
       weightEntries: [],
       workoutEntries: [],
       raceEvents: [],
+      healthChecks: [],
       gymPackage: null,
       userId: null,
 
@@ -72,6 +77,11 @@ export const useAppStore = create<AppState>()(
           .filter((e) => !cloudRaceIds.has(e.id))
           .forEach((e) => db.upsertRaceEvent(userId, e));
 
+        const cloudHealthIds = new Set(data.healthChecks.map((e) => e.id));
+        snapshot.healthChecks
+          .filter((e) => !cloudHealthIds.has(e.id))
+          .forEach((e) => db.upsertHealthCheck(userId, e));
+
         if (snapshot.profile && !data.profile) db.upsertProfile(userId, snapshot.profile);
         if (snapshot.gymPackage && !data.gymPackage) db.upsertGymPackage(userId, snapshot.gymPackage);
 
@@ -88,11 +98,16 @@ export const useAppStore = create<AppState>()(
             ...data.raceEvents,
             ...current.raceEvents.filter((e) => !cloudRaceIds.has(e.id)),
           ];
+          const mergedHealth = [
+            ...data.healthChecks,
+            ...current.healthChecks.filter((e) => !cloudHealthIds.has(e.id)),
+          ];
           return {
             profile: data.profile ?? current.profile,
             weightEntries: mergedWeight.length > 0 ? mergedWeight : current.weightEntries,
             workoutEntries: mergedWorkouts.length > 0 ? mergedWorkouts : current.workoutEntries,
             raceEvents: mergedRaces.length > 0 ? mergedRaces : current.raceEvents,
+            healthChecks: mergedHealth.length > 0 ? mergedHealth : current.healthChecks,
             gymPackage: data.gymPackage ?? current.gymPackage,
           };
         });
@@ -103,6 +118,7 @@ export const useAppStore = create<AppState>()(
         weightEntries: [],
         workoutEntries: [],
         raceEvents: [],
+        healthChecks: [],
         gymPackage: null,
         userId: null,
       }),
@@ -172,6 +188,16 @@ export const useAppStore = create<AppState>()(
       deleteRaceEvent: (id) => {
         set((s) => ({ raceEvents: s.raceEvents.filter((e) => e.id !== id) }));
         db.deleteRaceEventDb(id);
+      },
+
+      addHealthCheck: (entry) => {
+        set((s) => ({ healthChecks: [...s.healthChecks, entry] }));
+        const { userId } = get();
+        if (userId) db.upsertHealthCheck(userId, entry);
+      },
+      deleteHealthCheck: (id) => {
+        set((s) => ({ healthChecks: s.healthChecks.filter((e) => e.id !== id) }));
+        db.deleteHealthCheckDb(id);
       },
     }),
     {

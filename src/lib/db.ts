@@ -2,7 +2,7 @@
  * Supabase database helpers — cloud sync for all user data.
  */
 import { supabase } from './supabase';
-import type { UserProfile, WeightEntry, WorkoutEntry, RaceEvent } from '@/types';
+import type { UserProfile, WeightEntry, WorkoutEntry, RaceEvent, HealthCheckEntry } from '@/types';
 import type { GymPackage } from './store';
 
 // ─── Profile ─────────────────────────────────────────────────────────────────
@@ -191,15 +191,42 @@ export async function fetchGymPackage(userId: string): Promise<GymPackage | null
   };
 }
 
+// ─── Health Checks ────────────────────────────────────────────────────────────
+
+export async function upsertHealthCheck(userId: string, entry: HealthCheckEntry) {
+  const { id, date, ...data } = entry;
+  await supabase.from('health_checks').upsert({
+    id,
+    user_id: userId,
+    date,
+    data,
+  });
+}
+
+export async function deleteHealthCheckDb(id: string) {
+  await supabase.from('health_checks').delete().eq('id', id);
+}
+
+export async function fetchHealthChecks(userId: string): Promise<HealthCheckEntry[]> {
+  const { data } = await supabase
+    .from('health_checks')
+    .select('*')
+    .eq('user_id', userId)
+    .order('date', { ascending: false });
+  if (!data) return [];
+  return data.map((r) => ({ id: r.id, date: r.date, ...r.data }));
+}
+
 // ─── Fetch all ───────────────────────────────────────────────────────────────
 
 export async function fetchAllUserData(userId: string) {
-  const [profile, weightEntries, workoutEntries, raceEvents, gymPackage] = await Promise.all([
+  const [profile, weightEntries, workoutEntries, raceEvents, gymPackage, healthChecks] = await Promise.all([
     fetchProfile(userId),
     fetchWeightEntries(userId),
     fetchWorkoutEntries(userId),
     fetchRaceEvents(userId),
     fetchGymPackage(userId),
+    fetchHealthChecks(userId),
   ]);
-  return { profile, weightEntries, workoutEntries, raceEvents, gymPackage };
+  return { profile, weightEntries, workoutEntries, raceEvents, gymPackage, healthChecks };
 }
